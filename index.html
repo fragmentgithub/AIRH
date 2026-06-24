@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="theme-color" content="#FFFBF2" />
 <title>ひらがな ことばあそび</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='88'>🐥</text></svg>" />
@@ -43,6 +43,7 @@
 }
 
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+.btn,.ghost-btn,.icon-btn,.listen-btn,.mode-opt,.tile,.slot,.toggle{touch-action:manipulation;}
 html,body{height:100%;}
 body{
   margin:0;
@@ -408,6 +409,7 @@ body{
   <!-- ============ QUIZ ============ -->
   <section class="screen quiz" id="screen-quiz" aria-label="もんだい">
     <div class="topbar">
+      <button class="icon-btn" id="quit-btn" aria-label="おうちへ もどる">🏠</button>
       <div class="progress" id="progress" role="img" aria-label="もんだい"></div>
       <button class="icon-btn" id="mute-btn" aria-label="おとの オン・オフ" aria-pressed="false">🔊</button>
     </div>
@@ -516,8 +518,8 @@ const WORDS = [
   {id:"tori", word:"とり", emoji:"🐦", level:1, choices:["と","り","ぬ","さ"]},
   {id:"uma",  word:"うま", emoji:"🐴", level:1, choices:["う","ま","け","の"]},
   {id:"kutsu",word:"くつ", emoji:"👟", level:1, choices:["く","つ","ほ","め"]},
-  {id:"kasa", word:"かさ", emoji:"☂️", level:1, choices:["か","さ","も","ね"]},
-  {id:"yama", word:"やま", emoji:"⛰️", level:1, choices:["や","ま","こ","す"]},
+  {id:"kasa", word:"かさ", emoji:"☔", level:1, choices:["か","さ","も","ね"]},
+  {id:"yama", word:"やま", emoji:"🗻", level:1, choices:["や","ま","こ","す"]},
   {id:"mimi", word:"みみ", emoji:"👂", level:1, choices:["み","ろ","け","ふ"]},
   {id:"tako", word:"たこ", emoji:"🐙", level:1, choices:["た","こ","ぬ","り"]},
   {id:"yuki", word:"ゆき", emoji:"❄️", level:1, choices:["ゆ","き","ら","そ"]},
@@ -528,7 +530,7 @@ const WORDS = [
   {id:"ame",  word:"あめ", emoji:"🍬", level:2, choices:["あ","め","ぬ","き"]},
   {id:"umi",  word:"うみ", emoji:"🌊", level:2, choices:["う","み","つ","ら"]},
   {id:"kumo", word:"くも", emoji:"☁️", level:2, choices:["く","も","ち","せ"]},
-  {id:"saru", word:"さる", emoji:"🐵", level:2, choices:["さ","る","ろ","に"]},
+  {id:"saru", word:"さる", emoji:"🐵", level:2, choices:["さ","る","ま","に"]},
   {id:"sushi",word:"すし", emoji:"🍣", level:2, choices:["す","し","ち","な"]},
   {id:"hon",  word:"ほん", emoji:"📖", level:2, choices:["ほ","ん","は","て"]},
   // --- level 3 : 3 letters, 5 choices ---
@@ -543,7 +545,7 @@ const WORDS = [
   {id:"kaeru",  word:"かえる", emoji:"🐸", level:3, choices:["か","え","る","ろ","ち"]},
   {id:"koala",  word:"こあら", emoji:"🐨", level:3, choices:["こ","あ","ら","お","て"]},
   {id:"kinoko", word:"きのこ", emoji:"🍄", level:3, choices:["き","の","こ","さ","ち"]},
-  {id:"tokei",  word:"とけい", emoji:"🕐", level:3, choices:["と","け","い","ち","ね"]},
+  {id:"tokei",  word:"とけい", emoji:"⏰", level:3, choices:["と","け","い","ち","ね"]},
   {id:"taiko",  word:"たいこ", emoji:"🥁", level:3, choices:["た","い","こ","け","ら"]},
   {id:"ahiru",  word:"あひる", emoji:"🦆", level:3, choices:["あ","ひ","る","わ","け"]},
 ];
@@ -583,11 +585,18 @@ let locked = false;      // ignore taps during transitions
 const PAD = 300;         // internal canvas resolution
 const BRUSH = 28;        // ink stroke width
 const COVER_OK = 0.5;    // fraction of the guide glyph to cover to accept (forgiving for 4yo)
-const OVERFLOW_MAX = 6;  // ink must not exceed guide*this (only blocks full-box scribbling)
+const OVERFLOW_MAX = 2.0; // ink must not exceed guide*this (blocks full-box scribbling)
+const PRECISION_OK = 0.6; // most ink should stay near the guide shape
+const TRACE_HELP_MS = 10000;
+const TRACE_RELAX_ATTEMPTS = 3;
+const TRACE_AUTO_ATTEMPTS = 5;
+const TRACE_COVER_RELAXED = 0.35;
 let padCtx = null, padGuideCtx = null;
 let guidePts = [];       // sampled glyph pixels of the current char
+let guideMask = null;    // guide expanded by a small tolerance
 let guideArea = 0;
 let drawing = false, traceBusy = false;
+let traceAttempts = 0, traceHelpTimer = null;
 let lastXY = [0,0];
 
 /* ---------- elements ---------------------------------------- */
@@ -654,19 +663,39 @@ if("speechSynthesis" in window){
   pickVoice();
   speechSynthesis.onvoiceschanged = pickVoice;
 }
+let speechPrimed = false, speechSeq = 0;
+function primeSpeech(){
+  if(speechPrimed || !store.soundOn || !("speechSynthesis" in window)) return;
+  speechPrimed = true;
+  try{
+    const u = new SpeechSynthesisUtterance(" ");
+    u.lang = "ja-JP";
+    u.volume = 0;
+    speechSynthesis.speak(u);
+  }catch(e){}
+}
 function speak(text, rate){
   if(!store.soundOn) return;
   if(!("speechSynthesis" in window)) return;
   try{
-    speechSynthesis.cancel();
+    const seq = ++speechSeq;
+    if(speechSynthesis.speaking || speechSynthesis.pending) speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
     u.lang = "ja-JP";
     if(jaVoice) u.voice = jaVoice;
     u.rate = rate || 0.95;  // natural speed
     u.pitch = 1.0;          // natural pitch (was 1.15 — sounded squeaky)
     u.volume = 0.9;
-    speechSynthesis.speak(u);
+    requestAnimationFrame(()=>{
+      if(seq !== speechSeq || !store.soundOn) return;
+      try{ speechSynthesis.speak(u); }catch(e){}
+    });
   }catch(e){}
+}
+function stopSpeaking(){
+  speechSeq++;
+  if(!("speechSynthesis" in window)) return;
+  try{ speechSynthesis.cancel(); }catch(e){}
 }
 let actx = null;
 function blip(kind){
@@ -750,10 +779,10 @@ function renderChoices(){
   });
 }
 function updateHintGlow(){
-  // after 2 wrong tries, gently glow the next-needed card
+  // after a gentle retry, glow the next-needed card
   const next = current.word[selected.length];
   document.querySelectorAll(".tile").forEach(t=>{
-    t.classList.toggle("is-hint", wrongCount>=2 && t.dataset.letter===next);
+    t.classList.toggle("is-hint", wrongCount>=1 && t.dataset.letter===next);
   });
 }
 
@@ -775,9 +804,52 @@ function loadQuestion(){
 
 /* ---------- handwriting (trace) mode ------------------------ */
 function traceFont(){ return '700 200px "Zen Maru Gothic","Hiragino Maru Gothic ProN","M PLUS Rounded 1c",system-ui,sans-serif'; }
+function clearTraceHelp(){
+  if(traceHelpTimer){ clearTimeout(traceHelpTimer); traceHelpTimer = null; }
+}
+function reinforceTraceGuide(ch){
+  padGuideCtx.fillStyle="#FFD79A";
+  padGuideCtx.textAlign="center"; padGuideCtx.textBaseline="middle";
+  padGuideCtx.font=traceFont();
+  padGuideCtx.fillText(ch, PAD/2, PAD/2+6);
+}
+function startTraceHelp(ch){
+  clearTraceHelp();
+  traceHelpTimer = setTimeout(()=>{
+    traceHelpTimer = null;
+    if(!screens.quiz.classList.contains("is-active") || store.mode!=="trace") return;
+    if(!current || current.word[selected.length] !== ch) return;
+    reinforceTraceGuide(ch);
+    $("message").textContent = "ここを なぞってね";
+    speak("ここを なぞってね", 0.85);
+  }, TRACE_HELP_MS);
+}
+function traceMatches(coverage, overflow, precision){
+  const coverNeed = traceAttempts >= TRACE_RELAX_ATTEMPTS ? TRACE_COVER_RELAXED : COVER_OK;
+  return coverage >= coverNeed && overflow <= OVERFLOW_MAX && precision >= PRECISION_OK;
+}
+function noteTraceAttempt(){
+  traceAttempts++;
+  const ch = current.word[selected.length];
+  reinforceTraceGuide(ch);
+  if(traceAttempts >= TRACE_AUTO_ATTEMPTS){
+    $("message").textContent = "いっしょに かこう";
+    speak("いっしょに かこう", 0.85);
+    acceptTraceChar();
+    return;
+  }
+  if(traceAttempts >= TRACE_RELAX_ATTEMPTS){
+    $("message").textContent = "ゆっくり なぞろう";
+    speak("ゆっくり なぞろう", 0.85);
+  }else{
+    $("message").textContent = "もうすこし なぞってね";
+  }
+}
 function setupTraceChar(speakIt){
   const ch = current.word[selected.length];
   traceBusy=false; drawing=false;
+  traceAttempts = 0;
+  clearTraceHelp();
   // visible faint guide
   padGuideCtx.clearRect(0,0,PAD,PAD);
   padGuideCtx.fillStyle="#E8DCC6";
@@ -793,12 +865,24 @@ function setupTraceChar(speakIt){
   guidePts=[];
   for(let y=0;y<PAD;y+=4){ for(let x=0;x<PAD;x+=4){ if(g[(y*PAD+x)*4+3]>40) guidePts.push([x,y]); } }
   guideArea=guidePts.length;
+  const GW=PAD/4, TOL=5;
+  guideMask = new Uint8Array(GW*GW);
+  for(const [gx,gy] of guidePts){
+    const cx=gx/4|0, cy=gy/4|0;
+    for(let dy=-TOL;dy<=TOL;dy++){
+      for(let dx=-TOL;dx<=TOL;dx++){
+        const nx=cx+dx, ny=cy+dy;
+        if(nx>=0 && nx<GW && ny>=0 && ny<GW) guideMask[ny*GW+nx]=1;
+      }
+    }
+  }
   // reset ink layer
   padCtx.clearRect(0,0,PAD,PAD);
   padCtx.lineWidth=BRUSH; padCtx.lineCap="round"; padCtx.lineJoin="round";
   padCtx.strokeStyle="#FF7A59";
   $("pad-done").classList.remove("is-on");
   $("message").textContent = "「"+ch+"」を ゆびで かいてね";
+  startTraceHelp(ch);
   if(speakIt) speak(ch+"、かいてね", 0.85);
 }
 function padPos(e){
@@ -828,13 +912,26 @@ function padUp(){
 function checkTrace(){
   if(traceBusy || !guideArea) return;
   const d=padCtx.getImageData(0,0,PAD,PAD).data;
-  let covered=0, ink=0;
-  for(let y=0;y<PAD;y+=4){ for(let x=0;x<PAD;x+=4){ if(d[(y*PAD+x)*4+3]>40) ink++; } }
+  const GW=PAD/4;
+  let covered=0, ink=0, inside=0;
+  for(let y=0;y<PAD;y+=4){ for(let x=0;x<PAD;x+=4){
+    if(d[(y*PAD+x)*4+3]>40){
+      ink++;
+      if(guideMask && guideMask[(y/4)*GW+(x/4)]) inside++;
+    }
+  } }
   for(let i=0;i<guidePts.length;i++){ const x=guidePts[i][0],y=guidePts[i][1]; if(d[(y*PAD+x)*4+3]>40) covered++; }
   const coverage=covered/guideArea, overflow=ink/guideArea;
-  if(coverage>=COVER_OK && overflow<=OVERFLOW_MAX) acceptTraceChar();
+  const precision=ink?inside/ink:0;
+  if(traceMatches(coverage, overflow, precision)){
+    acceptTraceChar();
+    return;
+  }
+  noteTraceAttempt();
+  if(!traceBusy && traceMatches(coverage, overflow, precision)) acceptTraceChar();
 }
 function acceptTraceChar(){
+  clearTraceHelp();
   traceBusy=true;
   const ch=current.word[selected.length];
   selected.push(ch);
@@ -878,11 +975,14 @@ function onWrong(){
   wrongCount++;
   const slots=$("slots");
   slots.classList.add("is-wrong");
-  $("message").textContent = MSG_WRONG[Math.min(wrongCount-1, MSG_WRONG.length-1)];
-  speak(MSG_WRONG[Math.min(wrongCount-1, MSG_WRONG.length-1)]);
+  const msg = MSG_WRONG[Math.min(wrongCount-1, MSG_WRONG.length-1)];
+  $("message").textContent = msg;
+  speak(msg);
+  let keep = 0;
+  while(keep < selected.length && selected[keep] === current.word[keep]) keep++;
   setTimeout(()=>{
     slots.classList.remove("is-wrong");
-    selected = [];
+    selected = selected.slice(0, keep);
     renderSlots(false);
     updateHintGlow();
     locked = false;
@@ -946,9 +1046,16 @@ function renderHome(){
 }
 function startSet(){
   // a tap unlocks audio context / speech on mobile
+  primeSpeech();
   if(actx && actx.state==="suspended") actx.resume();
   queue = buildSet(); qIndex=0; setStamps=0;
   loadQuestion();
+}
+function goHome(){
+  stopSpeaking();
+  clearTraceHelp();
+  locked=false; drawing=false; traceBusy=false;
+  renderHome(); show("home");
 }
 
 /* ---------- sound + parent sheet ---------------------------- */
@@ -963,7 +1070,7 @@ function applyMuteUi(){
 }
 function toggleSound(){
   store.soundOn = !store.soundOn; saveStore(); applyMuteUi();
-  if(!store.soundOn && "speechSynthesis" in window) speechSynthesis.cancel();
+  if(!store.soundOn) stopSpeaking();
 }
 function openParents(){
   $("stat-played").textContent = store.played;
@@ -980,6 +1087,7 @@ function closeParents(){
 /* ---------- wire up ----------------------------------------- */
 $("start-btn").addEventListener("click", startSet);
 $("listen-btn").addEventListener("click", ()=>speak(current.word));
+$("quit-btn").addEventListener("click", goHome);
 $("mute-btn").addEventListener("click", toggleSound);
 $("redo-btn").addEventListener("click", ()=>{
   if(locked) return;
@@ -987,7 +1095,7 @@ $("redo-btn").addEventListener("click", ()=>{
 });
 $("next-btn").addEventListener("click", nextQuestion);
 $("again-btn").addEventListener("click", startSet);
-$("gohome-btn").addEventListener("click", ()=>{ renderHome(); show("home"); });
+$("gohome-btn").addEventListener("click", goHome);
 $("parent-link").addEventListener("click", openParents);
 $("sound-toggle").addEventListener("click", toggleSound);
 $("sheet-close").addEventListener("click", closeParents);
@@ -1016,7 +1124,11 @@ function initPad(){
   pad.addEventListener("pointerup", padUp);
   pad.addEventListener("pointercancel", padUp);
 }
-$("clear-btn").addEventListener("click",()=>{ if(!traceBusy){ padCtx.clearRect(0,0,PAD,PAD); } });
+$("clear-btn").addEventListener("click",()=>{
+  if(traceBusy) return;
+  padCtx.clearRect(0,0,PAD,PAD);
+  noteTraceAttempt();
+});
 
 /* ---------- go ---------------------------------------------- */
 initPad();
