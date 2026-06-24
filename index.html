@@ -97,7 +97,7 @@ body{
 
 /* ---- screens ---- */
 .screen{
-  position:relative;   /* positioning context for sparks / parent link */
+  position:relative;   /* positioning context for parent link */
   flex:1 1 auto;       /* fill #app; grow past it when content overflows */
   min-height:0;
   display:none;
@@ -194,7 +194,7 @@ body{
 /* hint */
 .hint{display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:clamp(2px,1vh,8px);}
 .hint__say{display:flex;align-items:center;gap:8px;font-family:var(--font-display);font-weight:700;color:var(--ink);font-size:clamp(17px,4.6vw,22px);}
-.hint__say .peep{font-size:1.5em;animation:bob 3s ease-in-out infinite;}
+.hint__say .peep{font-size:1.5em;}
 .hint__card{
   background:var(--card);
   border-radius:30px;
@@ -205,8 +205,6 @@ body{
   font-size:clamp(64px,18vw,96px);
   line-height:1;
 }
-.hint__card.is-pop{animation:pop 2.6s ease-in-out infinite;}
-@keyframes pop{0%,72%,100%{transform:translateY(0) scale(1);}80%{transform:translateY(-10px) scale(1.06);}88%{transform:translateY(0) scale(1);}}
 .listen-btn{
   display:inline-flex;align-items:center;gap:8px;
   font-family:var(--font-ui);font-weight:800;font-size:clamp(15px,4vw,18px);
@@ -300,27 +298,31 @@ body{
 .pad-done.is-on{animation:pad-pop .55s ease;}
 @keyframes pad-pop{0%{opacity:0;transform:scale(.4) rotate(-12deg);}45%{opacity:1;transform:scale(1.12) rotate(4deg);}100%{opacity:0;transform:scale(1);}}
 
-/* ---- play-mode selector (home) ---- */
+/* ---- play-mode selector (parent sheet) ---- */
 .mode-seg{
   display:inline-flex;gap:4px;padding:5px;align-self:center;
   background:var(--paper-2);border-radius:var(--r-pill);
   box-shadow:inset 0 1px 3px rgba(74,59,46,.10);
 }
 .mode-opt{
+  display:inline-flex;align-items:center;justify-content:center;min-height:44px;
   font-family:var(--font-ui);font-weight:800;font-size:clamp(14px,3.8vw,16px);
   border:none;cursor:pointer;color:var(--ink-soft);background:transparent;
   border-radius:var(--r-pill);padding:.5em 1em;transition:color .15s,background .15s,box-shadow .15s;
 }
 .mode-opt.is-on{color:var(--ink);background:var(--card);box-shadow:var(--shadow-soft);}
 .mode-opt:focus-visible{outline:3px solid var(--coral);outline-offset:2px;}
+.sheet .mode-seg{margin-left:auto;}
+.sheet .mode-opt{font-size:14px;padding:0 .85em;}
 
 /* ============================================================
    SUCCESS  (overlay over quiz)
    ============================================================ */
 .success{justify-content:center;align-items:center;text-align:center;gap:clamp(14px,3vh,26px);background:
    radial-gradient(120% 80% at 50% 0%, rgba(255,194,75,.22), transparent 60%), var(--paper);}
-.success__emoji{font-size:clamp(64px,18vw,104px);line-height:1;animation:happy-bounce .9s ease infinite;}
-@keyframes happy-bounce{0%,100%{transform:translateY(0) rotate(-3deg);}50%{transform:translateY(-16px) rotate(3deg);}}
+.success__emoji{font-size:clamp(64px,18vw,104px);line-height:1;}
+.success.is-on .success__emoji{animation:success-peek .38s ease both;}
+@keyframes success-peek{0%{transform:scale(.92);opacity:.75;}100%{transform:scale(1);opacity:1;}}
 .success__word{
   position:relative;
   display:flex;align-items:center;justify-content:center;
@@ -337,18 +339,6 @@ body{
 .stamp.is-stamping{animation:stamp-down .6s cubic-bezier(.2,1.5,.4,1) both;}
 @keyframes stamp-down{0%{opacity:0;transform:translate(-50%,-50%) scale(2.4) rotate(-22deg);}55%{opacity:1;transform:translate(-50%,-50%) scale(.86) rotate(4deg);}100%{opacity:1;transform:translate(-50%,-50%) scale(1) rotate(-6deg);}}
 .success__msg{font-family:var(--font-display);font-weight:900;font-size:clamp(28px,8vw,40px);color:var(--hana);margin:0;}
-.success__got{display:flex;align-items:center;gap:8px;color:var(--ink-soft);font-weight:800;}
-.success__got svg{width:30px;height:30px;}
-
-/* sparkles */
-.spark{position:absolute;font-size:26px;pointer-events:none;opacity:0;}
-.success.is-on .spark{animation:spark .9s ease both;}
-.success .spark:nth-child(1){left:18%;top:26%;animation-delay:.15s;}
-.success .spark:nth-child(2){right:16%;top:30%;animation-delay:.28s;}
-.success .spark:nth-child(3){left:26%;bottom:30%;animation-delay:.4s;}
-.success .spark:nth-child(4){right:22%;bottom:26%;animation-delay:.52s;}
-@keyframes spark{0%{opacity:0;transform:scale(.4) rotate(0);}40%{opacity:1;transform:scale(1.2) rotate(20deg);}100%{opacity:0;transform:scale(.8) rotate(40deg);}}
-
 /* ============================================================
    END OF SET
    ============================================================ */
@@ -395,7 +385,7 @@ body{
    ============================================================ */
 @media (prefers-reduced-motion:reduce){
   *{animation-duration:.001ms !important;animation-iteration-count:1 !important;transition-duration:.06s !important;}
-  .home__mascot,.hint__say .peep,.hint__card.is-pop,.success__emoji,.end__emoji{animation:none !important;}
+  .home__mascot,.success__emoji,.end__emoji{animation:none !important;}
 }
 </style>
 </head>
@@ -406,16 +396,11 @@ body{
   <section class="screen home is-active" id="screen-home" aria-label="トップ">
     <div class="home__mascot" aria-hidden="true">🐥</div>
     <h1 class="home__title">ひらがな<br><span class="t-accent">ことばあそび</span></h1>
-    <p class="home__sub">えを みて ひらがなを ならべよう</p>
+    <p class="home__sub">えを みて あそぼう</p>
 
     <div class="tray" aria-label="きょうの はなまる">
       <span class="tray__label">きょうの はなまる</span>
       <div class="tray__hanas" id="home-hanas"></div>
-    </div>
-
-    <div class="mode-seg" role="group" aria-label="あそびかた">
-      <button class="mode-opt" type="button" data-mode="cards">🃏 ふだ</button>
-      <button class="mode-opt" type="button" data-mode="trace">✏️ てがき</button>
     </div>
 
     <button class="btn btn--big" id="start-btn">はじめる</button>
@@ -433,7 +418,7 @@ body{
 
     <div class="hint">
       <div class="hint__say"><span class="peep" aria-hidden="true">🐥</span><span>これ な〜に？</span></div>
-      <div class="hint__card is-pop" id="hint-emoji" role="img" aria-label="ヒント">🐱</div>
+      <div class="hint__card" id="hint-emoji" role="img" aria-label="ヒント">🐱</div>
       <button class="listen-btn" id="listen-btn">🔊 もういちど きく</button>
     </div>
 
@@ -460,17 +445,12 @@ body{
 
   <!-- ============ SUCCESS ============ -->
   <section class="screen success" id="screen-success" aria-label="せいかい">
-    <span class="spark" aria-hidden="true">✨</span>
-    <span class="spark" aria-hidden="true">⭐</span>
-    <span class="spark" aria-hidden="true">✨</span>
-    <span class="spark" aria-hidden="true">🌟</span>
     <div class="success__emoji" id="success-emoji" aria-hidden="true">🐱</div>
     <div class="success__word" id="success-word">
       <span id="success-word-text">ねこ</span>
       <span class="stamp" id="stamp" aria-hidden="true"></span>
     </div>
     <p class="success__msg" id="success-msg">できたね！</p>
-    <div class="success__got"><span id="got-stamp" aria-hidden="true"></span><span>はなまる ＋1</span></div>
     <button class="btn btn--next" id="next-btn">つぎへ →</button>
   </section>
 
@@ -496,6 +476,13 @@ body{
     <div class="sheet__row">
       <span class="k">おと</span>
       <button class="toggle is-on" id="sound-toggle" role="switch" aria-checked="true" aria-label="おと オン・オフ"></button>
+    </div>
+    <div class="sheet__row">
+      <span class="k">あそびかた</span>
+      <div class="mode-seg" role="group" aria-label="あそびかた">
+        <button class="mode-opt" type="button" data-mode="cards">🃏 ふだ</button>
+        <button class="mode-opt" type="button" data-mode="trace">✏️ てがき</button>
+      </div>
     </div>
     <div class="sheet__row">
       <span class="k">あそんだ もんだい</span>
@@ -968,8 +955,10 @@ function acceptTraceChar(){
   clearTraceHelp();
   traceBusy=true;
   const ch=current.word[selected.length];
+  const willComplete = selected.length + 1 === current.word.length;
   selected.push(ch);
-  blip("good"); speak(ch, 0.8);
+  blip("good");
+  if(!willComplete) speak(ch, 0.8);
   const dn=$("pad-done"); dn.classList.remove("is-on"); void dn.offsetWidth; dn.classList.add("is-on");
   renderSlots(true);
   setTimeout(()=>{
@@ -982,8 +971,11 @@ function acceptTraceChar(){
 function tapLetter(letter){
   if(locked) return;
   if(selected.length >= current.word.length) return;
+  const next = selected.concat(letter);
+  const willBeCorrect = next.length === current.word.length && next.join("") === current.word;
   selected.push(letter);
-  blip("tap"); speak(letter, 0.8); // single kana a bit slower & clearer
+  blip("tap");
+  if(!willBeCorrect) speak(letter, 0.8); // single kana a bit slower & clearer
   renderSlots(true);
   updateHintGlow();
   if(selected.length === current.word.length){
@@ -1036,16 +1028,15 @@ function showSuccess(){
   $("success-word-text").textContent = current.word;
   $("success-msg").textContent = MSG_RIGHT[Math.floor(Math.random()*MSG_RIGHT.length)];
   const stamp=$("stamp"); stamp.innerHTML = hanaRing(); stamp.classList.remove("is-stamping");
-  $("got-stamp").innerHTML = hanaBadge();
   const scr=$("screen-success"); scr.classList.remove("is-on");
   show("success");
-  // retrigger stamp + sparkle animations
+  // retrigger the single hanamaru stamp animation
   void scr.offsetWidth;
   requestAnimationFrame(()=>{
     stamp.classList.add("is-stamping");
     scr.classList.add("is-on");
   });
-  setTimeout(()=>speak(current.word+"、できた！"), 360);
+  setTimeout(()=>speak(current.word), 360);
 }
 
 function nextQuestion(){
