@@ -314,6 +314,9 @@ body{
 .mode-opt:focus-visible{outline:3px solid var(--coral);outline-offset:2px;}
 .sheet .mode-seg{margin-left:auto;}
 .sheet .mode-opt{font-size:14px;padding:0 .85em;}
+#limit-seg{width:100%;margin-left:0;justify-content:center;flex-wrap:wrap;border-radius:20px;}
+#limit-seg .mode-opt{flex:1 1 64px;white-space:nowrap;}
+.sheet__row--stack{flex-direction:column;align-items:flex-start;gap:8px;}
 
 /* ============================================================
    SUCCESS  (overlay over quiz)
@@ -466,6 +469,15 @@ body{
     </div>
   </section>
 
+  <section class="screen end" id="screen-rest" aria-label="きょうは おしまい">
+    <div class="end__emoji" aria-hidden="true">🌙</div>
+    <h1 class="end__title">きょうは おしまい</h1>
+    <p class="end__count">また あした あそぼうね</p>
+    <div class="end__actions">
+      <button class="btn btn--next btn--soft" id="rest-home-btn">おうちへ</button>
+    </div>
+  </section>
+
 </div>
 
 <!-- ============ PARENT SHEET ============ -->
@@ -479,10 +491,23 @@ body{
     </div>
     <div class="sheet__row">
       <span class="k">あそびかた</span>
-      <div class="mode-seg" role="group" aria-label="あそびかた">
+      <div class="mode-seg" id="mode-seg" role="group" aria-label="あそびかた">
         <button class="mode-opt" type="button" data-mode="cards">🃏 ふだ</button>
         <button class="mode-opt" type="button" data-mode="trace">✏️ てがき</button>
       </div>
+    </div>
+    <div class="sheet__row sheet__row--stack">
+      <span class="k">あそぶ じかん</span>
+      <div class="mode-seg" id="limit-seg" role="group" aria-label="あそぶ じかんの せいげん">
+        <button class="mode-opt" type="button" data-limit="0">なし</button>
+        <button class="mode-opt" type="button" data-limit="5">5ふん</button>
+        <button class="mode-opt" type="button" data-limit="10">10ぷん</button>
+        <button class="mode-opt" type="button" data-limit="15">15ふん</button>
+      </div>
+    </div>
+    <div class="sheet__row">
+      <span class="k">きょう あそんだ じかん</span>
+      <span class="v" id="stat-playtime">0ぷん</span>
     </div>
     <div class="sheet__row">
       <span class="k">あそんだ もんだい</span>
@@ -564,11 +589,13 @@ function todayStr(){ const d=new Date(); return d.getFullYear()+"-"+(d.getMonth(
 function loadStore(){
   let s={};
   try{ s = JSON.parse(localStorage.getItem(STORE_KEY)) || {}; }catch(e){ s={}; }
-  if(s.date !== todayStr()){ s.date = todayStr(); s.todayStamps = 0; }
+  if(s.date !== todayStr()){ s.date = todayStr(); s.todayStamps = 0; s.playedMs = 0; }
   if(typeof s.todayStamps !== "number") s.todayStamps = 0;
   if(typeof s.soundOn !== "boolean") s.soundOn = true;
   if(typeof s.played !== "number") s.played = 0;
   if(typeof s.correct !== "number") s.correct = 0;
+  if(typeof s.playedMs !== "number") s.playedMs = 0;
+  if(typeof s.limitMin !== "number") s.limitMin = 0;
   if(s.mode !== "cards" && s.mode !== "trace") s.mode = "cards"; // ふだ / てがき
   return s;
 }
@@ -584,6 +611,37 @@ let selected = [];       // chosen letters
 let wrongCount = 0;      // wrong completes this question (for hint)
 let setStamps = 0;       // hanamaru earned this set
 let locked = false;      // ignore taps during transitions
+let playTick = null, tickStart = 0;
+
+function checkpointPlay(){
+  if(!tickStart) return;
+  const now = Date.now();
+  store.playedMs += now - tickStart;
+  tickStart = now;
+  saveStore();
+}
+function startPlayClock(){
+  if(store.limitMin <= 0 || playTick) return;
+  tickStart = Date.now();
+  playTick = setInterval(checkpointPlay, 5000);
+}
+function stopPlayClock(){
+  if(playTick){
+    checkpointPlay();
+    clearInterval(playTick);
+    playTick = null;
+  }
+  tickStart = 0;
+}
+function timeUp(){
+  return store.limitMin > 0 && store.playedMs >= store.limitMin * 60000;
+}
+function playScreenActive(){
+  return screens.quiz.classList.contains("is-active") || screens.success.classList.contains("is-active");
+}
+function formatPlaytime(){
+  return Math.round(store.playedMs / 60000) + "ぷん";
+}
 
 /* handwriting (trace) mode state */
 const PAD = 300;         // internal canvas resolution
@@ -609,7 +667,7 @@ let lastXY = [0,0];
 const $ = (id)=>document.getElementById(id);
 const screens = {
   home:$("screen-home"), quiz:$("screen-quiz"),
-  success:$("screen-success"), end:$("screen-end"),
+  success:$("screen-success"), end:$("screen-end"), rest:$("screen-rest"),
 };
 function show(name){
   for(const k in screens) screens[k].classList.toggle("is-active", k===name);
@@ -805,6 +863,7 @@ function loadQuestion(){
   $("trace-area").hidden = !trace;
   if(trace){ setupTraceChar(false); } else { renderChoices(); }
   show("quiz");
+  startPlayClock();
   // read the word aloud shortly after it appears
   setTimeout(()=>speak(current.word), 420);
 }
@@ -1040,8 +1099,10 @@ function showSuccess(){
 }
 
 function nextQuestion(){
+  checkpointPlay();
   qIndex++;
   if(qIndex >= SET_SIZE){ showEnd(); }
+  else if(timeUp()){ showRest(); }
   else { loadQuestion(); }
 }
 
@@ -1053,10 +1114,18 @@ function renderHanaRow(el, count, cap){
   if(count>cap){ const m=document.createElement("span"); m.className="tray__more"; m.textContent="＋"+(count-cap); el.appendChild(m); }
 }
 function showEnd(){
+  stopPlayClock();
   $("end-count").textContent = SET_SIZE+"もん あそんだよ";
   renderHanaRow($("end-hanas"), setStamps, 5);
   show("end");
   setTimeout(()=>speak("よく できました"), 300);
+}
+function showRest(){
+  stopPlayClock();
+  clearTraceHelp();
+  locked=false; drawing=false; traceBusy=false;
+  show("rest");
+  setTimeout(()=>speak("きょうは おしまい。また あした"), 300);
 }
 
 /* ---------- home -------------------------------------------- */
@@ -1073,11 +1142,13 @@ function startSet(){
   // a tap unlocks audio context / speech on mobile
   primeSpeech();
   if(actx && actx.state==="suspended") actx.resume();
+  if(timeUp()){ showRest(); return; }
   queue = buildSet(); qIndex=0; setStamps=0;
   loadQuestion();
 }
 function goHome(){
   stopSpeaking();
+  stopPlayClock();
   clearTraceHelp();
   locked=false; drawing=false; traceBusy=false;
   renderHome(); show("home");
@@ -1097,13 +1168,23 @@ function toggleSound(){
   store.soundOn = !store.soundOn; saveStore(); applyMuteUi();
   if(!store.soundOn) stopSpeaking();
 }
+function applyLimitUi(){
+  document.querySelectorAll("#limit-seg .mode-opt").forEach(b=>{
+    const on = Number(b.dataset.limit) === store.limitMin;
+    b.classList.toggle("is-on", on);
+    b.setAttribute("aria-pressed", String(on));
+  });
+}
 let parentTrap = null;
 let parentReturnFocus = null;
 function openParents(){
   if(parentTrap){ document.removeEventListener("keydown", parentTrap, true); parentTrap = null; }
+  checkpointPlay();
   $("stat-played").textContent = store.played;
   $("stat-correct").textContent = store.correct;
+  $("stat-playtime").textContent = formatPlaytime();
   applyMuteUi();
+  applyLimitUi();
   parentReturnFocus = (document.activeElement instanceof HTMLElement) ? document.activeElement : $("parent-link");
   $("parent-veil").classList.add("is-open");
   $("parent-veil").setAttribute("aria-hidden","false");
@@ -1146,6 +1227,7 @@ $("redo-btn").addEventListener("click", ()=>{
 $("next-btn").addEventListener("click", nextQuestion);
 $("again-btn").addEventListener("click", startSet);
 $("gohome-btn").addEventListener("click", goHome);
+$("rest-home-btn").addEventListener("click", goHome);
 $("parent-link").addEventListener("click", openParents);
 $("sound-toggle").addEventListener("click", toggleSound);
 $("sheet-close").addEventListener("click", closeParents);
@@ -1154,14 +1236,26 @@ document.addEventListener("keydown",(e)=>{ if(e.key==="Escape") closeParents(); 
 
 /* play-mode selector */
 function applyModeUi(){
-  document.querySelectorAll(".mode-opt").forEach(b=>{
+  document.querySelectorAll("#mode-seg .mode-opt").forEach(b=>{
     const on=b.dataset.mode===store.mode;
     b.classList.toggle("is-on", on);
     b.setAttribute("aria-pressed", String(on));
   });
 }
-document.querySelectorAll(".mode-opt").forEach(b=>{
+document.querySelectorAll("#mode-seg .mode-opt").forEach(b=>{
   b.addEventListener("click",()=>{ store.mode=b.dataset.mode; saveStore(); applyModeUi(); });
+});
+document.querySelectorAll("#limit-seg .mode-opt").forEach(b=>{
+  b.addEventListener("click",()=>{
+    store.limitMin = Number(b.dataset.limit);
+    saveStore();
+    applyLimitUi();
+    $("stat-playtime").textContent = formatPlaytime();
+  });
+});
+document.addEventListener("visibilitychange", ()=>{
+  if(document.hidden) stopPlayClock();
+  else if(playScreenActive()) startPlayClock();
 });
 
 /* handwriting canvas */
@@ -1184,6 +1278,7 @@ $("clear-btn").addEventListener("click",()=>{
 initPad();
 applyMuteUi();
 applyModeUi();
+applyLimitUi();
 renderHome();
 show("home");
 </script>
