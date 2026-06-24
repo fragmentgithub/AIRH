@@ -587,7 +587,9 @@ const BRUSH = 28;        // ink stroke width
 const COVER_OK = 0.5;    // fraction of the guide glyph to cover to accept (forgiving for 4yo)
 const OVERFLOW_MAX = 2.0; // ink must not exceed guide*this (blocks full-box scribbling)
 const PRECISION_OK = 0.6; // most ink should stay near the guide shape
-const TRACE_HELP_MS = 10000;
+const TRACE_HINT_MS = 8000;
+const TRACE_RELAX_MS = 16000;
+const TRACE_AUTO_MS = 24000;
 const TRACE_RELAX_ATTEMPTS = 3;
 const TRACE_AUTO_ATTEMPTS = 5;
 const TRACE_COVER_RELAXED = 0.35;
@@ -596,7 +598,7 @@ let guidePts = [];       // sampled glyph pixels of the current char
 let guideMask = null;    // guide expanded by a small tolerance
 let guideArea = 0;
 let drawing = false, traceBusy = false;
-let traceAttempts = 0, traceHelpTimer = null;
+let traceAttempts = 0, traceTimers = [];
 let lastXY = [0,0];
 
 /* ---------- elements ---------------------------------------- */
@@ -805,7 +807,8 @@ function loadQuestion(){
 /* ---------- handwriting (trace) mode ------------------------ */
 function traceFont(){ return '700 200px "Zen Maru Gothic","Hiragino Maru Gothic ProN","M PLUS Rounded 1c",system-ui,sans-serif'; }
 function clearTraceHelp(){
-  if(traceHelpTimer){ clearTimeout(traceHelpTimer); traceHelpTimer = null; }
+  traceTimers.forEach(clearTimeout);
+  traceTimers = [];
 }
 function reinforceTraceGuide(ch){
   padGuideCtx.fillStyle="#FFD79A";
@@ -813,16 +816,32 @@ function reinforceTraceGuide(ch){
   padGuideCtx.font=traceFont();
   padGuideCtx.fillText(ch, PAD/2, PAD/2+6);
 }
+function stillThisTraceChar(ch){
+  return screens.quiz.classList.contains("is-active") &&
+    store.mode==="trace" && current && current.word[selected.length]===ch && !traceBusy;
+}
 function startTraceHelp(ch){
   clearTraceHelp();
-  traceHelpTimer = setTimeout(()=>{
-    traceHelpTimer = null;
-    if(!screens.quiz.classList.contains("is-active") || store.mode!=="trace") return;
-    if(!current || current.word[selected.length] !== ch) return;
-    reinforceTraceGuide(ch);
-    $("message").textContent = "ここを なぞってね";
-    speak("ここを なぞってね", 0.85);
-  }, TRACE_HELP_MS);
+  traceTimers = [
+    setTimeout(()=>{
+      if(!stillThisTraceChar(ch)) return;
+      reinforceTraceGuide(ch);
+      $("message").textContent = "ここを なぞってね";
+      speak("ここを なぞってね", 0.85);
+    }, TRACE_HINT_MS),
+    setTimeout(()=>{
+      if(!stillThisTraceChar(ch)) return;
+      traceAttempts = Math.max(traceAttempts, TRACE_RELAX_ATTEMPTS);
+      $("message").textContent = "ゆっくり なぞろう";
+      speak("ゆっくり なぞろう", 0.85);
+    }, TRACE_RELAX_MS),
+    setTimeout(()=>{
+      if(!stillThisTraceChar(ch)) return;
+      $("message").textContent = "いっしょに かこう";
+      speak("いっしょに かこう", 0.85);
+      acceptTraceChar();
+    }, TRACE_AUTO_MS),
+  ];
 }
 function traceMatches(coverage, overflow, precision){
   const coverNeed = traceAttempts >= TRACE_RELAX_ATTEMPTS ? TRACE_COVER_RELAXED : COVER_OK;
@@ -925,10 +944,7 @@ function checkTrace(){
   const precision=ink?inside/ink:0;
   if(traceMatches(coverage, overflow, precision)){
     acceptTraceChar();
-    return;
   }
-  noteTraceAttempt();
-  if(!traceBusy && traceMatches(coverage, overflow, precision)) acceptTraceChar();
 }
 function acceptTraceChar(){
   clearTraceHelp();
