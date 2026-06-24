@@ -1,0 +1,10 @@
+# Claude Code / agent working dirs — never publish
+.claude/
+.agents/
+
+# test / tooling scratch
+.playwright-mcp/
+*.png
+*.log
+.DS_Store
+Thumbs.db
