@@ -6,6 +6,21 @@
 <meta name="theme-color" content="#FFFBF2" />
 <title>ひらがな ことばあそび</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='88'>🐥</text></svg>" />
+<!-- standalone web-app hints (home-screen launch without browser chrome) -->
+<!-- "offline" here = browser HTTP cache + system maru-gothic font fallback only.
+     A true offline PWA needs a service worker = a second file = breaks the
+     single-file constraint, so NO service worker is added. -->
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="ひらがな" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="application-name" content="ひらがな" />
+<!-- apple-touch-icon intentionally omitted: iOS requires a PNG (SVG/emoji
+     data-URI not honored). To add one later, inline a base64 PNG:
+     <link rel="apple-touch-icon" href="data:image/png;base64,XXXX" />.
+     Until then iOS auto-snapshots the page for the home-screen icon. -->
+<!-- Optional: inline manifest for Chromium install (display:standalone). Remove this line if undesired. -->
+<link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22%E3%81%B2%E3%82%89%E3%81%8C%E3%81%AA%20%E3%81%93%E3%81%A8%E3%81%B0%E3%81%82%E3%81%9D%E3%81%B3%22%2C%22short_name%22%3A%22%E3%81%B2%E3%82%89%E3%81%8C%E3%81%AA%22%2C%22lang%22%3A%22ja%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22orientation%22%3A%22portrait%22%2C%22background_color%22%3A%22%23FFFBF2%22%2C%22theme_color%22%3A%22%23FFFBF2%22%7D" />
 
 <!-- Rounded Japanese display + UI faces (progressive enhancement; system maru-gothic fallback below) -->
 <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -116,6 +131,8 @@ body{
   font-weight:700;
   border:none;background:transparent;cursor:pointer;
   color:var(--ink-soft);
+  display:inline-flex;align-items:center;justify-content:center;
+  min-height:44px;padding:8px 16px;
 }
 .ghost-btn:focus-visible{outline:3px solid var(--ink);outline-offset:2px;border-radius:8px;}
 
@@ -791,6 +808,7 @@ function updateHintGlow(){
 function loadQuestion(){
   current = queue[qIndex];
   selected = []; wrongCount=0; locked=false; drawing=false; traceBusy=false;
+  store.played++; saveStore();
   $("message").textContent="";
   $("hint-emoji").textContent = current.emoji;
   $("hint-emoji").setAttribute("aria-label", "ヒントの え");
@@ -1005,7 +1023,7 @@ function onWrong(){
   }, 620);
 }
 function onCorrect(){
-  store.played++; store.correct++;
+  store.correct++;
   store.todayStamps++; setStamps++;
   saveStore();
   blip("good");
@@ -1088,16 +1106,41 @@ function toggleSound(){
   store.soundOn = !store.soundOn; saveStore(); applyMuteUi();
   if(!store.soundOn) stopSpeaking();
 }
+let parentTrap = null;
+let parentReturnFocus = null;
 function openParents(){
+  if(parentTrap){ document.removeEventListener("keydown", parentTrap, true); parentTrap = null; }
   $("stat-played").textContent = store.played;
   $("stat-correct").textContent = store.correct;
   applyMuteUi();
+  parentReturnFocus = (document.activeElement instanceof HTMLElement) ? document.activeElement : $("parent-link");
   $("parent-veil").classList.add("is-open");
   $("parent-veil").setAttribute("aria-hidden","false");
+  $("sheet-close").focus();
+  parentTrap = (e)=>{
+    if(e.key !== "Tab") return;
+    const nodes = $("parent-veil").querySelectorAll(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    const list = Array.prototype.filter.call(nodes, el => !el.disabled && el.offsetParent !== null);
+    if(!list.length){ e.preventDefault(); return; }
+    const first = list[0], last = list[list.length-1];
+    if(e.shiftKey && document.activeElement === first){
+      e.preventDefault(); last.focus();
+    }else if(!e.shiftKey && document.activeElement === last){
+      e.preventDefault(); first.focus();
+    }
+  };
+  document.addEventListener("keydown", parentTrap, true);
 }
 function closeParents(){
+  const wasOpen = $("parent-veil").classList.contains("is-open");
   $("parent-veil").classList.remove("is-open");
   $("parent-veil").setAttribute("aria-hidden","true");
+  if(parentTrap){ document.removeEventListener("keydown", parentTrap, true); parentTrap = null; }
+  const target = parentReturnFocus || $("parent-link");
+  parentReturnFocus = null;
+  if(wasOpen && target && typeof target.focus === "function") target.focus();
 }
 
 /* ---------- wire up ----------------------------------------- */
