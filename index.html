@@ -295,9 +295,10 @@ body.lefty .pad-wrap{margin-left:max(0px,calc((100% - min(76vw,300px)) * .18));m
   grid-template-columns:repeat(auto-fit,minmax(0,1fr));
   gap:clamp(10px,2.6vw,16px);
   padding-bottom:4px;
+  justify-content:center; /* keep the tiles a centered group — don't spread to the edges on wide/tablet screens */
 }
-.choices.cols-2{grid-template-columns:repeat(2,1fr);}
-.choices.cols-3{grid-template-columns:repeat(3,1fr);}
+.choices.cols-2{grid-template-columns:repeat(2,minmax(0,118px));}
+.choices.cols-3{grid-template-columns:repeat(3,minmax(0,118px));}
 .tile{
   aspect-ratio:1/1;
   max-height:118px;
@@ -477,6 +478,8 @@ body.lefty .pad-wrap{margin-left:max(0px,calc((100% - min(76vw,300px)) * .18));m
    ============================================================ */
 @media (min-width:560px) and (min-height:680px){
   .tile{max-height:140px;}
+  .choices.cols-2{grid-template-columns:repeat(2,minmax(0,140px));}
+  .choices.cols-3{grid-template-columns:repeat(3,minmax(0,140px));}
 }
 
 /* ============================================================
