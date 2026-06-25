@@ -58,7 +58,7 @@
 }
 
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-.btn,.ghost-btn,.icon-btn,.listen-btn,.mode-opt,.tile,.slot,.toggle,.clap-btn,.ear-btn,.profile-btn,.friend,.custom-emoji,.mirror-choice{touch-action:manipulation;}
+.btn,.ghost-btn,.icon-btn,.listen-btn,.mode-opt,.home-mode,.tile,.slot,.toggle,.clap-btn,.ear-btn,.profile-btn,.friend,.custom-emoji,.mirror-choice{touch-action:manipulation;}
 html,body{height:100%;}
 body{
   margin:0;
@@ -136,7 +136,7 @@ body.lefty .pad-wrap{margin-left:max(0px,calc((100% - min(76vw,300px)) * .18));m
   line-height:1;
 }
 .btn:active{transform:translateY(4px);box-shadow:0 2px 0 var(--coral-deep), 0 6px 12px rgba(242,97,63,.24);}
-.btn--big{font-size:clamp(26px,7vw,34px);padding:.7em 1.5em;}
+.btn--big{font-size:clamp(24px,6vw,30px);padding:.62em 1.42em;}
 .btn--next{font-size:clamp(24px,6.5vw,30px);padding:.62em 1.6em;}
 .btn:focus-visible{outline:4px solid var(--ink);outline-offset:3px;}
 
@@ -153,51 +153,90 @@ body.lefty .pad-wrap{margin-left:max(0px,calc((100% - min(76vw,300px)) * .18));m
 /* ============================================================
    HOME
    ============================================================ */
-.home{justify-content:center;align-items:center;text-align:center;gap:clamp(18px,4vh,32px);}
+.home{
+  justify-content:center;align-items:center;text-align:center;
+  gap:clamp(8px,1.8vh,14px);
+  padding-top:44px;
+  padding-bottom:54px;
+}
 .profile-row{position:absolute;top:8px;left:50%;transform:translateX(-50%);display:flex;gap:8px;align-items:center;justify-content:center;}
 .profile-btn{
   width:44px;height:44px;border:none;border-radius:50%;background:var(--card);
   box-shadow:var(--shadow-soft);font-size:24px;display:grid;place-items:center;cursor:pointer;
 }
 .profile-btn.is-on{outline:4px solid var(--sun);outline-offset:2px;}
-.home__mascot{font-size:clamp(72px,20vw,120px);line-height:1;filter:drop-shadow(0 8px 10px rgba(74,59,46,.16));animation:bob 3.4s ease-in-out infinite;}
+.home__mascot{font-size:clamp(48px,14vw,80px);line-height:1;filter:drop-shadow(0 8px 10px rgba(74,59,46,.16));animation:bob 3.4s ease-in-out infinite;}
 @keyframes bob{0%,100%{transform:translateY(0) rotate(-2deg);}50%{transform:translateY(-12px) rotate(2deg);}}
 .home__title{
   font-family:var(--font-display);
   font-weight:900;
   margin:0;
-  font-size:clamp(34px,9.5vw,52px);
+  font-size:clamp(30px,8vw,44px);
   letter-spacing:.04em;
-  line-height:1.18;
+  line-height:1.1;
   color:var(--ink);
   text-shadow:0 3px 0 #fff, 0 4px 0 rgba(255,194,75,.55);
 }
 .home__title .t-accent{color:var(--coral-ink);}
-.home__sub{margin:0;color:var(--ink-soft);font-weight:700;font-size:clamp(14px,3.6vw,17px);}
+.home__sub{margin:-2px 0 0;color:var(--ink-soft);font-weight:700;font-size:clamp(13px,3.4vw,16px);}
+
+.home-modes{
+  width:min(100%,360px);
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:8px;
+  justify-content:center;
+}
+.home-mode{
+  min-height:58px;
+  border:none;
+  border-radius:18px;
+  background:var(--paper-2);
+  color:var(--ink);
+  box-shadow:0 4px 0 rgba(74,59,46,.10),0 8px 16px rgba(74,59,46,.08);
+  font-family:var(--font-ui);
+  font-weight:900;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:2px;
+  padding:6px 4px;
+  cursor:pointer;
+}
+.home-mode__icon{font-size:clamp(21px,5.8vw,29px);line-height:1;}
+.home-mode__label{font-size:clamp(11px,3.1vw,14px);line-height:1.15;white-space:nowrap;}
+.home-mode.is-on{
+  background:var(--card);
+  box-shadow:0 5px 0 rgba(255,194,75,.75),var(--shadow-soft);
+  outline:3px solid var(--sun);
+  outline-offset:1px;
+}
+.home-mode:focus-visible{outline:4px solid var(--coral);outline-offset:2px;}
 
 /* today's hanamaru tray */
 .tray{
   display:flex;align-items:center;gap:10px;
   background:var(--card);
   border-radius:var(--r-pill);
-  padding:10px 20px;
+  padding:8px 16px;
   box-shadow:var(--shadow-soft);
 }
 .tray__label{font-weight:800;color:var(--ink);font-size:clamp(13px,3.4vw,15px);white-space:nowrap;}
-.tray__hanas{display:flex;flex-wrap:wrap;gap:4px;align-items:center;max-width:46vw;}
-.tray__hanas svg{width:28px;height:28px;}
+.tray__hanas{display:flex;flex-wrap:wrap;gap:4px;align-items:center;max-width:42vw;}
+.tray__hanas svg{width:24px;height:24px;}
 .tray__none{color:var(--ink-soft);font-weight:700;font-size:13px;}
 .tray__more{font-weight:800;color:var(--hana-deep);font-size:15px;}
 
 .home__parent{
-  position:absolute;left:50%;bottom:6px;transform:translateX(-50%);
+  position:absolute;left:50%;bottom:4px;transform:translateX(-50%);
   font-size:13px;color:var(--ink-soft);background:rgba(255,255,255,.86);
   border-radius:var(--r-pill);box-shadow:var(--shadow-soft);padding:8px 14px;
 } /* #app already pads the safe area */
 .home__parent::before{content:"⚙ ";font-size:12px;}
 .friend-hill{
-  width:min(92%,420px);min-height:96px;position:relative;margin:-6px auto 0;
-  border-radius:28px 28px 44px 44px;
+  width:min(94%,390px);min-height:72px;position:relative;margin:0 auto;
+  border-radius:24px 24px 36px 36px;
   background:linear-gradient(180deg,rgba(127,200,232,.14),rgba(127,200,232,0) 48%),linear-gradient(180deg,#DFF3D9,#BEE6AE);
   box-shadow:inset 0 -12px 0 rgba(95,184,114,.12),var(--shadow-soft);
   overflow:hidden;
@@ -205,8 +244,8 @@ body.lefty .pad-wrap{margin-left:max(0px,calc((100% - min(76vw,300px)) * .18));m
 .friend-hill::after{content:"";position:absolute;left:-8%;right:-8%;bottom:-28px;height:52px;border-radius:50%;background:#9BD48D;}
 .friend{
   position:absolute;z-index:1;border:none;background:transparent;cursor:pointer;
-  width:38px;height:38px;display:grid;place-items:center;
-  font-size:clamp(20px,6vw,30px);line-height:1;filter:drop-shadow(0 3px 2px rgba(74,59,46,.16));
+  width:34px;height:34px;display:grid;place-items:center;
+  font-size:clamp(18px,5.4vw,27px);line-height:1;filter:drop-shadow(0 3px 2px rgba(74,59,46,.16));
 }
 .friend.is-new{animation:friend-in .38s ease both;}
 @keyframes friend-in{0%{transform:translateY(12px) scale(.5);opacity:0;}100%{transform:none;opacity:1;}}
@@ -290,7 +329,7 @@ body.lefty .pad-wrap{margin-left:max(0px,calc((100% - min(76vw,300px)) * .18));m
 @keyframes wobble{0%,100%{transform:translateX(0);}20%{transform:translateX(-9px) rotate(-1.5deg);}40%{transform:translateX(9px) rotate(1.5deg);}60%{transform:translateX(-6px);}80%{transform:translateX(6px);}}
 
 /* gentle message line */
-.message{min-height:1.6em;text-align:center;font-family:var(--font-display);font-weight:700;font-size:clamp(18px,4.6vw,22px);color:var(--coral-ink);transition:opacity .2s;}
+.message{min-height:1.6em;margin:0;text-align:center;font-family:var(--font-display);font-weight:700;font-size:clamp(18px,4.6vw,22px);color:var(--coral-ink);transition:opacity .2s;}
 
 /* answer area wrapper (cards OR handwriting) is pushed to the bottom */
 .answer-area{margin-top:auto;display:flex;flex-direction:column;}
@@ -328,6 +367,42 @@ body.lefty .pad-wrap{margin-left:max(0px,calc((100% - min(76vw,300px)) * .18));m
 @keyframes hint-glow{0%,100%{box-shadow:var(--shadow-card),0 0 0 0 rgba(255,194,75,0);}50%{box-shadow:var(--shadow-card),0 0 0 8px rgba(255,194,75,.65);}}
 
 .redo{align-self:center;margin-top:8px;font-size:clamp(14px,3.8vw,16px);}
+
+.quiz[data-mode="cards"]{gap:clamp(4px,1.1vh,10px);}
+.quiz[data-mode="cards"] .hint{gap:4px;margin-top:0;}
+.quiz[data-mode="cards"] .hint__card{
+  width:clamp(104px,29vw,138px);
+  height:clamp(104px,29vw,138px);
+  font-size:clamp(56px,15vw,80px);
+  border-radius:24px;
+}
+.quiz[data-mode="cards"] .mouth-cue{min-height:24px;font-size:22px;}
+.quiz[data-mode="cards"] .listen-btn{font-size:clamp(14px,3.6vw,16px);padding:.42em 1em;}
+.quiz[data-mode="cards"] .slots{gap:clamp(8px,2vw,12px);margin:4px 0;}
+.quiz[data-mode="cards"] .slot{
+  width:clamp(52px,14vw,72px);
+  height:clamp(60px,16vw,82px);
+  font-size:clamp(30px,8vw,44px);
+}
+.quiz[data-mode="cards"] .message{min-height:1.35em;font-size:clamp(16px,4vw,20px);}
+.quiz[data-mode="cards"] #cards-area{margin-top:0;}
+.quiz[data-mode="cards"] .choices{gap:clamp(8px,2vw,12px);}
+.quiz[data-mode="cards"] .choices.cols-2{grid-template-columns:repeat(2,minmax(0,104px));}
+.quiz[data-mode="cards"] .choices.cols-3{grid-template-columns:repeat(3,minmax(0,96px));}
+.quiz[data-mode="cards"] .tile{max-height:104px;font-size:clamp(36px,10vw,56px);}
+.quiz[data-mode="cards"] .redo{margin-top:4px;}
+.quiz[data-mode="cards"][data-length="3"] .hint__card{
+  width:clamp(92px,26vw,124px);
+  height:clamp(92px,26vw,124px);
+  font-size:clamp(50px,13vw,72px);
+}
+.quiz[data-mode="cards"][data-length="3"] .slot{
+  width:clamp(48px,13vw,64px);
+  height:clamp(56px,15vw,74px);
+  font-size:clamp(28px,7.4vw,38px);
+}
+.quiz[data-mode="cards"][data-length="3"] .choices.cols-3{grid-template-columns:repeat(3,minmax(0,92px));}
+.quiz[data-mode="cards"][data-length="3"] .tile{max-height:92px;font-size:clamp(34px,9vw,50px);}
 
 /* ---- handwriting (trace) mode ---- */
 .pad-wrap{
@@ -504,6 +579,24 @@ body.lefty .pad-wrap{margin-left:max(0px,calc((100% - min(76vw,300px)) * .18));m
 .toggle.is-on::after{transform:translateX(28px);}
 .sheet__close{width:100%;margin-top:18px;font-size:20px;padding:.6em;}
 
+@media (max-height:720px){
+  #app{
+    padding-top:calc(env(safe-area-inset-top) + 6px);
+    padding-bottom:calc(env(safe-area-inset-bottom) + 8px);
+  }
+  .home{gap:6px;padding-top:38px;padding-bottom:42px;}
+  .home__mascot{font-size:clamp(40px,12vw,60px);}
+  .home__title{font-size:clamp(28px,7.2vw,38px);line-height:1.06;}
+  .home__sub{display:none;}
+  .home-modes{gap:6px;}
+  .home-mode{min-height:52px;border-radius:15px;padding:4px 3px;}
+  .friend-hill{min-height:56px;width:min(94%,360px);}
+  .tray{padding:6px 14px;}
+  .tray__hanas svg{width:21px;height:21px;}
+  .btn--big{font-size:clamp(22px,5.7vw,28px);padding:.56em 1.32em;}
+  .quiz[data-mode="cards"] .listen-btn{display:none;}
+}
+
 /* ============================================================
    responsive: roomier on tablet / desktop
    ============================================================ */
@@ -531,6 +624,30 @@ body.lefty .pad-wrap{margin-left:max(0px,calc((100% - min(76vw,300px)) * .18));m
     <div class="home__mascot" aria-hidden="true">🐥</div>
     <h1 class="home__title">ひらがな<br><span class="t-accent">ことばあそび</span></h1>
     <p class="home__sub">えを みて あそぼう</p>
+
+    <div class="home-modes" id="home-modes" role="group" aria-label="あそびを えらぶ">
+      <button class="home-mode" type="button" data-home-mode="cards" aria-pressed="true">
+        <span class="home-mode__icon" aria-hidden="true">🃏</span><span class="home-mode__label">ふだ</span>
+      </button>
+      <button class="home-mode" type="button" data-home-mode="cards3" aria-pressed="false">
+        <span class="home-mode__icon" aria-hidden="true">🔤</span><span class="home-mode__label">3もじ</span>
+      </button>
+      <button class="home-mode" type="button" data-home-mode="trace" aria-pressed="false">
+        <span class="home-mode__icon" aria-hidden="true">✏️</span><span class="home-mode__label">てがき</span>
+      </button>
+      <button class="home-mode" type="button" data-home-mode="clap" aria-pressed="false">
+        <span class="home-mode__icon" aria-hidden="true">👏</span><span class="home-mode__label">てびょうし</span>
+      </button>
+      <button class="home-mode" type="button" data-home-mode="mirror" aria-pressed="false">
+        <span class="home-mode__icon" aria-hidden="true">↔</span><span class="home-mode__label">むき</span>
+      </button>
+      <button class="home-mode" type="button" data-home-mode="teach" aria-pressed="false">
+        <span class="home-mode__icon" aria-hidden="true">🐥</span><span class="home-mode__label">おしえる</span>
+      </button>
+      <button class="home-mode" type="button" data-home-mode="ear" aria-pressed="false">
+        <span class="home-mode__icon" aria-hidden="true">👂</span><span class="home-mode__label">おみみ</span>
+      </button>
+    </div>
 
     <div class="friend-hill" id="friend-hill" aria-label="ともだちの おか"></div>
 
@@ -645,7 +762,8 @@ body.lefty .pad-wrap{margin-left:max(0px,calc((100% - min(76vw,300px)) * .18));m
     <div class="sheet__row">
       <span class="k">遊び方</span>
       <div class="mode-seg mode-seg--wrap" id="mode-seg" role="group" aria-label="遊び方">
-        <button class="mode-opt" type="button" data-mode="cards">🃏 札</button>
+        <button class="mode-opt" type="button" data-mode="cards" data-card-level="0">🃏 札</button>
+        <button class="mode-opt" type="button" data-mode="cards" data-card-level="3">🔤 3文字札</button>
         <button class="mode-opt" type="button" data-mode="trace">✏️ 手書き</button>
         <button class="mode-opt" type="button" data-mode="clap">👏 拍手</button>
         <button class="mode-opt" type="button" data-mode="mirror">↔ 向き</button>
@@ -761,6 +879,10 @@ const WORDS = [
   {id:"tokei",  word:"とけい", emoji:"⏰", level:3, choices:["と","け","い","ち","ね"]},
   {id:"taiko",  word:"たいこ", emoji:"🥁", level:3, choices:["た","い","こ","け","ら"]},
   {id:"ahiru",  word:"あひる", emoji:"🦆", level:3, choices:["あ","ひ","る","わ","け"]},
+  {id:"asahi",  word:"あさひ", emoji:"🌅", level:3, choices:["あ","さ","ひ","ま","こ"]},
+  {id:"ofuro",  word:"おふろ", emoji:"🛁", level:3, choices:["お","ふ","ろ","ほ","め"]},
+  {id:"hasami", word:"はさみ", emoji:"✂️", level:3, choices:["は","さ","み","ほ","き"]},
+  {id:"koinu",  word:"こいぬ", emoji:"🐕", level:3, choices:["こ","い","ぬ","の","め"]},
 ];
 
 const SET_SIZE = 5;
@@ -829,7 +951,7 @@ function storeKey(){ return BASE_STORE_KEY+"-"+activeProfileId; }
 function defaultStore(){
   return {
     date:todayStr(), todayStamps:0, soundOn:true, played:0, correct:0,
-    playedMs:0, limitMin:0, mode:"cards", calm:false, bigTargets:false, lefty:false,
+    playedMs:0, limitMin:0, mode:"cards", cardLevel:0, calm:false, bigTargets:false, lefty:false,
     friends:[], customWords:[], history:[], misses:{}, lastFriend:""
   };
 }
@@ -849,6 +971,8 @@ function loadStore(){
   if(typeof s.playedMs !== "number") s.playedMs = 0;
   if(typeof s.limitMin !== "number") s.limitMin = 0;
   if(!["cards","trace","clap","mirror","teach","ear"].includes(s.mode)) s.mode = "cards";
+  s.cardLevel = Number(s.cardLevel) === 3 ? 3 : 0;
+  if(s.mode !== "cards") s.cardLevel = 0;
   if(!Array.isArray(s.friends)) s.friends = [];
   if(!Array.isArray(s.customWords)) s.customWords = [];
   else{
@@ -878,6 +1002,16 @@ function loadStore(){
 function saveStore(){ try{ localStorage.setItem(storeKey(), JSON.stringify(store)); }catch(e){} }
 let store = loadStore();
 saveStore(); // persist a possible date-rollover reset immediately
+
+const HOME_MODE_OPTIONS = {
+  cards:{mode:"cards", cardLevel:0},
+  cards3:{mode:"cards", cardLevel:3},
+  trace:{mode:"trace", cardLevel:0},
+  clap:{mode:"clap", cardLevel:0},
+  mirror:{mode:"mirror", cardLevel:0},
+  teach:{mode:"teach", cardLevel:0},
+  ear:{mode:"ear", cardLevel:0}
+};
 
 /* ---------- run-time state ---------------------------------- */
 let queue = [];          // 5 questions for this set
@@ -1224,13 +1358,15 @@ function startDwell(el, letter){
 /* ---------- build a set ------------------------------------- */
 function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
 function buildSet(){
-  // gentle ramp: prefer level 1 early, allow 2 then 3 later; never all-hard
+  // gentle ramp for normal cards; 3-letter cards are an explicit child-selected mode
   const words = allWords();
-  const custom = shuffle((store.customWords||[]).map(w=>Object.assign({level:1, custom:true}, w)));
+  const threeCardMode = store.mode==="cards" && store.cardLevel===3;
+  const customWords = (store.customWords||[]).map(w=>Object.assign({level:1, custom:true}, w));
+  const custom = shuffle(threeCardMode ? customWords.filter(w=>w.word.length===3) : customWords);
   const byLvl = {1:shuffle(words.filter(w=>w.level===1)),
                  2:shuffle(words.filter(w=>w.level===2)),
                  3:shuffle(words.filter(w=>w.level===3))};
-  const plan = [1,1,2,2,3]; // difficulty per question in the set
+  const plan = threeCardMode ? [3,3,3,3,3] : [1,1,2,2,3]; // difficulty per question in the set
   const used = new Set();
   const out = [];
   if(custom.length){
@@ -1240,7 +1376,7 @@ function buildSet(){
     if(out.length>=SET_SIZE) break;
     let pool = byLvl[lvl].filter(w=>!used.has(w.id));
     if(pool.length===0){ // fall back to any unused
-      pool = shuffle(words.filter(w=>!used.has(w.id)));
+      pool = shuffle(words.filter(w=>!used.has(w.id) && (!threeCardMode || w.word.length===3)));
     }
     const w = pool[0];
     used.add(w.id);
@@ -1403,6 +1539,7 @@ function loadQuestion(){
   renderProgress(); renderSlots(false);
   const mode = store.mode;
   screens.quiz.dataset.mode = mode;
+  screens.quiz.dataset.length = String(current.word.length);
   $("cards-area").hidden = !["cards","teach"].includes(mode);
   $("trace-area").hidden = mode!=="trace";
   $("clap-area").hidden = mode!=="clap";
@@ -1840,6 +1977,7 @@ function renderHill(){
 function renderHome(){
   renderProfiles();
   renderHill();
+  applyHomeModeUi();
   const box=$("home-hanas");
   box.innerHTML="";
   if(store.todayStamps===0){
@@ -2057,15 +2195,46 @@ $("parent-veil").addEventListener("click",(e)=>{ if(e.target===$("parent-veil"))
 document.addEventListener("keydown",(e)=>{ if(e.key==="Escape") closeParents(); });
 
 /* play-mode selector */
-function applyModeUi(){
-  document.querySelectorAll("#mode-seg .mode-opt").forEach(b=>{
-    const on=b.dataset.mode===store.mode;
+function currentHomeModeKey(){
+  if(store.mode==="cards" && store.cardLevel===3) return "cards3";
+  return Object.keys(HOME_MODE_OPTIONS).find(k=>k!=="cards3" && HOME_MODE_OPTIONS[k].mode===store.mode) || "cards";
+}
+function applyHomeModeUi(){
+  const key = currentHomeModeKey();
+  document.querySelectorAll("#home-modes .home-mode").forEach(b=>{
+    const on = b.dataset.homeMode===key;
     b.classList.toggle("is-on", on);
     b.setAttribute("aria-pressed", String(on));
   });
 }
+function applyModeUi(){
+  document.querySelectorAll("#mode-seg .mode-opt").forEach(b=>{
+    const cardLevel = Number(b.dataset.cardLevel || 0);
+    const on=b.dataset.mode===store.mode && (b.dataset.mode!=="cards" || cardLevel===store.cardLevel);
+    b.classList.toggle("is-on", on);
+    b.setAttribute("aria-pressed", String(on));
+  });
+  applyHomeModeUi();
+}
+function chooseHomeMode(key){
+  const opt = HOME_MODE_OPTIONS[key];
+  if(!opt) return;
+  store.mode = opt.mode;
+  store.cardLevel = opt.cardLevel || 0;
+  saveStore();
+  applyModeUi();
+}
+document.querySelectorAll("#home-modes .home-mode").forEach(b=>{
+  b.addEventListener("click",()=>chooseHomeMode(b.dataset.homeMode));
+});
 document.querySelectorAll("#mode-seg .mode-opt").forEach(b=>{
-  b.addEventListener("click",()=>{ store.mode=b.dataset.mode; saveStore(); applyModeUi(); });
+  b.addEventListener("click",()=>{
+    store.mode=b.dataset.mode;
+    store.cardLevel=Number(b.dataset.cardLevel || 0);
+    if(store.mode!=="cards") store.cardLevel=0;
+    saveStore();
+    applyModeUi();
+  });
 });
 document.querySelectorAll("#limit-seg .mode-opt").forEach(b=>{
   b.addEventListener("click",()=>{
