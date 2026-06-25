@@ -50,6 +50,7 @@
 
   --font-display:"Zen Maru Gothic","Hiragino Maru Gothic ProN","ヒラギノ丸ゴ ProN W4","Rounded Mplus 1c","M PLUS Rounded 1c",system-ui,sans-serif;
   --font-ui:"M PLUS Rounded 1c","Hiragino Maru Gothic ProN","Rounded Mplus 1c",system-ui,sans-serif;
+  --font-kana:"UD Digi Kyokasho NK-R","UD Digi Kyokasho N-R","UD デジタル 教科書体 NK-R","UD デジタル 教科書体 N-R","Yu Kyokasho","YuKyokasho","游教科書体","Hiragino Maru Gothic ProN","M PLUS Rounded 1c",system-ui,sans-serif;
 
   --r-card:22px;
   --r-pill:999px;
@@ -316,7 +317,7 @@ body.lefty .pad-wrap{margin-left:max(0px,calc((100% - min(76vw,300px)) * .18));m
   background:var(--paper-2);
   border:4px dashed rgba(255,194,75,.85);
   display:grid;place-items:center;
-  font-family:var(--font-display);font-weight:900;
+  font-family:var(--font-kana);font-weight:900;
   font-size:clamp(34px,10vw,52px);
   color:var(--ink);
   cursor:pointer;
@@ -351,7 +352,7 @@ body.lefty .pad-wrap{margin-left:max(0px,calc((100% - min(76vw,300px)) * .18));m
   border:none;cursor:pointer;
   background:var(--card);
   border-radius:var(--r-card);
-  font-family:var(--font-display);font-weight:900;
+  font-family:var(--font-kana);font-weight:900;
   font-size:clamp(40px,12vw,62px);
   color:var(--ink);
   box-shadow:var(--shadow-card);
@@ -531,7 +532,7 @@ body.lefty .pad-wrap{margin-left:max(0px,calc((100% - min(76vw,300px)) * .18));m
   position:relative;
   display:flex;align-items:center;justify-content:center;
   min-height:clamp(200px,62vw,320px); /* reserve room so the ring never overlaps neighbours */
-  font-family:var(--font-display);font-weight:900;
+  font-family:var(--font-kana);font-weight:900;
   font-size:clamp(40px,11vw,58px);
   color:var(--ink);
   letter-spacing:.06em;
@@ -912,7 +913,10 @@ const TRACE_PATTERNS = {
   softS:[[[206,67],[124,94],[95,144],[145,168],[205,154],[184,215],[99,234]]],
   nWave:[[[70,178],[108,116],[152,182],[199,116],[230,174]]],
   yo:[[[158,60],[156,162],[184,214],[104,210]],[[112,102],[205,99]]],
+  ra:[[[164,68],[120,93]],[[134,115],[116,164],[160,139],[211,151],[207,197],[164,229],[111,222]]],
+  ri:[[[118,62],[112,148]],[[194,58],[192,132],[169,202],[126,235]]],
   mu:[[[100,75],[203,78]],[[151,54],[151,164],[190,219],[114,228]],[[82,151],[223,142]]],
+  mo:[[[156,58],[142,100],[139,150],[141,197],[166,231],[212,209]],[[104,118],[205,115]],[[106,164],[201,160]]],
   fu:[[[154,72],[133,112]],[[91,155],[72,213]],[[206,150],[230,210]]],
   wa:[[[106,64],[109,226]],[[106,139],[168,92],[221,130],[190,203]]]
 };
@@ -923,9 +927,9 @@ const TRACE_PATH_MAP = {
   た:"cross",ち:"sweep",つ:"sweep",て:"sweep",と:"hook",
   な:"crossHook",に:"twoLine",ぬ:"loopTail",ね:"wa",の:"loop",
   は:"twoLine",ひ:"curve",ふ:"fu",へ:"chevron",ほ:"cross",
-  ま:"three",み:"loopTail",む:"mu",め:"loopTail",も:"hook",
+  ま:"three",み:"loopTail",む:"mu",め:"loopTail",も:"mo",
   や:"cross",ゆ:"loopTail",よ:"yo",
-  ら:"hook",り:"twoLine",る:"loopTail",れ:"wa",ろ:"curve",
+  ら:"ra",り:"ri",る:"loopTail",れ:"wa",ろ:"curve",
   わ:"wa",を:"loopTail",ん:"nWave"
 };
 const MSG_WRONG = ["もういっかい","こっちかな？","よくみてみよう"];
@@ -951,7 +955,7 @@ function storeKey(){ return BASE_STORE_KEY+"-"+activeProfileId; }
 function defaultStore(){
   return {
     date:todayStr(), todayStamps:0, soundOn:true, played:0, correct:0,
-    playedMs:0, limitMin:0, mode:"cards", cardLevel:0, calm:false, bigTargets:false, lefty:false,
+    playedMs:0, limitMin:15, timerDefaultV2:true, mode:"cards", cardLevel:0, calm:false, bigTargets:false, lefty:false,
     friends:[], customWords:[], history:[], misses:{}, lastFriend:""
   };
 }
@@ -962,6 +966,8 @@ function loadStore(){
   if(!Object.keys(s).length && activeProfileId==="p1"){
     try{ s = JSON.parse(localStorage.getItem(BASE_STORE_KEY)) || {}; }catch(e){ s={}; }
   }
+  const hadTimerDefaultV2 = s.timerDefaultV2 === true;
+  const savedLimitMin = s.limitMin;
   s = Object.assign(defaultStore(), s);
   if(s.date !== todayStr()){ s.date = todayStr(); s.todayStamps = 0; s.playedMs = 0; }
   if(typeof s.todayStamps !== "number") s.todayStamps = 0;
@@ -969,7 +975,9 @@ function loadStore(){
   if(typeof s.played !== "number") s.played = 0;
   if(typeof s.correct !== "number") s.correct = 0;
   if(typeof s.playedMs !== "number") s.playedMs = 0;
-  if(typeof s.limitMin !== "number") s.limitMin = 0;
+  if(typeof s.limitMin !== "number" || ![0,5,10,15].includes(s.limitMin)) s.limitMin = 15;
+  if(!hadTimerDefaultV2 && savedLimitMin === 0) s.limitMin = 15;
+  s.timerDefaultV2 = true;
   if(!["cards","trace","clap","mirror","teach","ear"].includes(s.mode)) s.mode = "cards";
   s.cardLevel = Number(s.cardLevel) === 3 ? 3 : 0;
   if(s.mode !== "cards") s.cardLevel = 0;
@@ -1074,15 +1082,15 @@ function formatPlaytime(){
 /* handwriting (trace) mode state */
 const PAD = 300;         // internal canvas resolution
 const BRUSH = 28;        // ink stroke width
-const COVER_OK = 0.5;    // fraction of the guide glyph to cover to accept (forgiving for 4yo)
-const OVERFLOW_MAX = 2.0; // ink must not exceed guide*this (blocks full-box scribbling)
-const PRECISION_OK = 0.6; // most ink should stay near the guide shape
+const COVER_OK = 0.42;   // fraction of the guide glyph to cover to accept (forgiving for 4yo)
+const OVERFLOW_MAX = 2.2; // ink must not exceed guide*this (blocks full-box scribbling)
+const PRECISION_OK = 0.54; // most ink should stay near the guide shape
 const TRACE_HINT_MS = 8000;
 const TRACE_RELAX_MS = 16000;
 const TRACE_AUTO_MS = 24000;
 const TRACE_RELAX_ATTEMPTS = 3;
 const TRACE_AUTO_ATTEMPTS = 5;
-const TRACE_COVER_RELAXED = 0.35;
+const TRACE_COVER_RELAXED = 0.26;
 const TRACE_MIN_STROKE_PX = 26;  // PAD(300) units; shorter drawn length = stray tap, ignored
 const STROKE_CAP = 2;            // never demand more than 2 strokes from a 4yo
 function strokesNeededFor(ch){
@@ -1562,9 +1570,22 @@ function loadQuestion(){
 }
 
 /* ---------- handwriting (trace) mode ------------------------ */
-function traceFont(){ return '700 200px "Zen Maru Gothic","Hiragino Maru Gothic ProN","M PLUS Rounded 1c",system-ui,sans-serif'; }
+function traceFont(){
+  return '700 200px "UD Digi Kyokasho NK-R","UD Digi Kyokasho N-R","UD デジタル 教科書体 NK-R","UD デジタル 教科書体 N-R","Yu Kyokasho","YuKyokasho","游教科書体","Hiragino Maru Gothic ProN","M PLUS Rounded 1c",system-ui,sans-serif';
+}
 function traceStrokes(ch){
   return TRACE_PATTERNS[TRACE_PATH_MAP[ch]] || TRACE_PATTERNS.loop;
+}
+function setTraceGlyphStyle(ctx, color){
+  ctx.fillStyle=color;
+  ctx.textAlign="center";
+  ctx.textBaseline="middle";
+  ctx.font=traceFont();
+}
+function drawTraceGuide(ch, color){
+  padGuideCtx.clearRect(0,0,PAD,PAD);
+  setTraceGlyphStyle(padGuideCtx, color || "#E8DCC6");
+  padGuideCtx.fillText(ch, PAD/2, PAD/2+6);
 }
 function segmentLen(a,b){
   const dx=b[0]-a[0], dy=b[1]-a[1];
@@ -1593,6 +1614,36 @@ function pointOnTrace(strokes, t){
   const lastStroke = strokes[strokes.length-1];
   return lastStroke[lastStroke.length-1];
 }
+function drawTraceProgress(ctx, strokes, t){
+  const lengths = strokes.map(strokeLen);
+  const total = Math.max(1, lengths.reduce((a,b)=>a+b, 0));
+  let remain = total * Math.max(0, Math.min(1, t));
+  ctx.save();
+  ctx.strokeStyle="rgba(255,122,89,.58)";
+  ctx.lineWidth=22;
+  ctx.lineCap="round";
+  ctx.lineJoin="round";
+  for(let si=0; si<strokes.length && remain>0; si++){
+    const stroke = strokes[si];
+    if(!stroke.length) continue;
+    ctx.beginPath();
+    ctx.moveTo(stroke[0][0], stroke[0][1]);
+    for(let i=1;i<stroke.length;i++){
+      const a=stroke[i-1], b=stroke[i], len=segmentLen(a,b);
+      if(remain >= len){
+        ctx.lineTo(b[0], b[1]);
+        remain -= len;
+      }else{
+        const k = len ? remain/len : 0;
+        ctx.lineTo(a[0]+(b[0]-a[0])*k, a[1]+(b[1]-a[1])*k);
+        remain = 0;
+        break;
+      }
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+}
 function stopTraceDemo(){
   if(traceDemoTimer){ clearTimeout(traceDemoTimer); traceDemoTimer=null; }
   if(traceDemoFrame){ cancelAnimationFrame(traceDemoFrame); traceDemoFrame=null; }
@@ -1601,6 +1652,10 @@ function stopTraceDemo(){
     dot.classList.remove("is-on");
     dot.style.opacity="";
   }
+  if(current && store.mode==="trace" && !traceBusy){
+    const ch=current.word[selected.length];
+    if(ch) drawTraceGuide(ch, "#E8DCC6");
+  }
 }
 function clearTraceHelp(){
   traceTimers.forEach(clearTimeout);
@@ -1608,10 +1663,7 @@ function clearTraceHelp(){
   stopTraceDemo();
 }
 function reinforceTraceGuide(ch){
-  padGuideCtx.fillStyle="#FFD79A";
-  padGuideCtx.textAlign="center"; padGuideCtx.textBaseline="middle";
-  padGuideCtx.font=traceFont();
-  padGuideCtx.fillText(ch, PAD/2, PAD/2+6);
+  drawTraceGuide(ch, "#FFD79A");
 }
 function stillThisTraceChar(ch){
   return screens.quiz.classList.contains("is-active") &&
@@ -1670,15 +1722,11 @@ function setupTraceChar(speakIt){
   traceAttempts = 0; committedStrokes = 0;
   clearTraceHelp();
   // visible faint guide
-  padGuideCtx.clearRect(0,0,PAD,PAD);
-  padGuideCtx.fillStyle="#E8DCC6";
-  padGuideCtx.textAlign="center"; padGuideCtx.textBaseline="middle";
-  padGuideCtx.font=traceFont();
-  padGuideCtx.fillText(ch, PAD/2, PAD/2+6);
+  drawTraceGuide(ch, "#E8DCC6");
   // offscreen solid render -> sample the glyph pixels we want covered
   const off=document.createElement("canvas"); off.width=PAD; off.height=PAD;
   const oc=off.getContext("2d",{willReadFrequently:true});
-  oc.fillStyle="#000"; oc.textAlign="center"; oc.textBaseline="middle"; oc.font=traceFont();
+  setTraceGlyphStyle(oc, "#000");
   oc.fillText(ch, PAD/2, PAD/2+6);
   const g=oc.getImageData(0,0,PAD,PAD).data;
   guidePts=[];
@@ -1723,6 +1771,8 @@ function playTraceDemo(silent){
     const scale=r.width/PAD;
     const fadeIn=Math.min(1, t/.08);
     const fadeOut=t>.92 ? Math.max(0, (1-t)/.08) : 1;
+    drawTraceGuide(ch, "#E8DCC6");
+    drawTraceProgress(padGuideCtx, strokes, t);
     dot.style.opacity=String(Math.min(fadeIn, fadeOut));
     dot.style.transform="translate("+(p[0]*scale-11).toFixed(1)+"px,"+(p[1]*scale-11).toFixed(1)+"px) scale("+(0.82+Math.min(1,t*6)*0.18).toFixed(2)+")";
     if(t<1) traceDemoFrame=requestAnimationFrame(step);
@@ -1730,6 +1780,7 @@ function playTraceDemo(silent){
       traceDemoFrame=null;
       dot.classList.remove("is-on");
       dot.style.opacity="";
+      drawTraceGuide(ch, "#FFD79A");
     }
   };
   traceDemoFrame=requestAnimationFrame(step);
@@ -1740,6 +1791,7 @@ function padPos(e){
 }
 function padDown(e){
   if(traceBusy) return;
+  stopTraceDemo();
   drawing=true; curStrokeLen=0;
   try{ $("pad").setPointerCapture(e.pointerId); }catch(_){}
   const p=padPos(e); lastXY=p;
@@ -1773,14 +1825,25 @@ function checkTrace(){
   const ch=current.word[selected.length];
   const d=padCtx.getImageData(0,0,PAD,PAD).data;
   const GW=PAD/4;
+  const inkMask = new Uint8Array(GW*GW);
   let covered=0, ink=0, inside=0;
   for(let y=0;y<PAD;y+=4){ for(let x=0;x<PAD;x+=4){
     if(d[(y*PAD+x)*4+3]>40){
       ink++;
-      if(guideMask && guideMask[(y/4)*GW+(x/4)]) inside++;
+      const cx=x/4|0, cy=y/4|0;
+      if(guideMask && guideMask[cy*GW+cx]) inside++;
+      for(let dy=-2;dy<=2;dy++){
+        for(let dx=-2;dx<=2;dx++){
+          const nx=cx+dx, ny=cy+dy;
+          if(nx>=0 && nx<GW && ny>=0 && ny<GW) inkMask[ny*GW+nx]=1;
+        }
+      }
     }
   } }
-  for(let i=0;i<guidePts.length;i++){ const x=guidePts[i][0],y=guidePts[i][1]; if(d[(y*PAD+x)*4+3]>40) covered++; }
+  for(let i=0;i<guidePts.length;i++){
+    const x=guidePts[i][0]/4|0, y=guidePts[i][1]/4|0;
+    if(inkMask[y*GW+x]) covered++;
+  }
   const coverage=covered/guideArea, overflow=ink/guideArea;
   const precision=ink?inside/ink:0;
   if(traceMatches(coverage, overflow, precision, ch)){
@@ -1993,6 +2056,7 @@ function startSet(){
   if(actx && actx.state==="suspended") actx.resume();
   if(timeUp()){ showRest(); return; }
   queue = buildSet(); qIndex=0; setStamps=0; setMisses=[];
+  startPlayClock();
   loadQuestion();
 }
 function goHome(){
