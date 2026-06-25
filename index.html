@@ -464,6 +464,17 @@ body.lefty .pad-wrap{margin-left:max(0px,calc((100% - min(76vw,300px)) * .18));m
 .mirror-choice.is-rotate span{display:inline-block;transform:rotate(180deg);}
 
 .trace-actions{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;}
+.trace-done-btn{
+  background:var(--good);
+  box-shadow:0 5px 0 #4C9D5E,0 9px 16px rgba(76,157,94,.22);
+  color:#fff;
+}
+.trace-done-btn:disabled{
+  opacity:.48;
+  cursor:not-allowed;
+  transform:none;
+  box-shadow:0 4px 0 rgba(74,59,46,.10),0 7px 12px rgba(74,59,46,.08);
+}
 .quiz[data-mode="trace"]{gap:clamp(4px,1vh,10px);}
 .quiz[data-mode="trace"] .hint{gap:4px;margin-top:0;}
 .quiz[data-mode="trace"] .hint__card{
@@ -698,6 +709,7 @@ body.lefty .pad-wrap{margin-left:max(0px,calc((100% - min(76vw,300px)) * .18));m
       <div class="trace-actions">
         <button class="ghost-btn redo" id="demo-btn">▶ おてほん</button>
         <button class="ghost-btn redo" id="clear-btn">↺ けす</button>
+        <button class="btn btn--next trace-done-btn" id="trace-done-btn" disabled>できた</button>
       </div>
     </div>
 
@@ -1084,15 +1096,11 @@ function formatPlaytime(){
 /* handwriting (trace) mode state */
 const PAD = 300;         // internal canvas resolution
 const BRUSH = 28;        // ink stroke width
-const COVER_OK = 0.5;    // fraction of the guide glyph to cover to accept
-const OVERFLOW_MAX = 1.8; // ink must not exceed guide*this (blocks full-box scribbling)
-const PRECISION_OK = 0.62; // most ink should stay near the guide shape
 const TRACE_HINT_MS = 8000;
 const TRACE_RELAX_MS = 16000;
 const TRACE_AUTO_MS = 24000;
 const TRACE_RELAX_ATTEMPTS = 3;
 const TRACE_AUTO_ATTEMPTS = 5;
-const TRACE_COVER_RELAXED = 0.38;
 const TRACE_MIN_STROKE_PX = 26;  // PAD(300) units; shorter drawn length = stray tap, ignored
 function strokesNeededFor(ch){
   const s = traceStrokes(ch);    // existing trace data (drives the demo); .loop fallback => 1
@@ -1105,6 +1113,7 @@ let guideArea = 0;
 let drawing = false, traceBusy = false;
 let traceAttempts = 0, traceTimers = [];
 let curStrokeLen = 0, committedStrokes = 0;
+let totalTraceLen = 0;
 let lastXY = [0,0];
 
 /* ---------- elements ---------------------------------------- */
@@ -1689,25 +1698,25 @@ function startTraceHelp(ch){
       if(!stillThisTraceChar(ch)) return;
       $("message").textContent = "いっしょに かこう";
       speak("いっしょに かこう", 0.85);
-      acceptTraceChar();
+      playTraceDemo(true);
     }, TRACE_AUTO_MS),
   ];
 }
-function traceMatches(coverage, overflow, precision, ch){
-  const relaxed   = traceAttempts >= TRACE_RELAX_ATTEMPTS;
-  const coverNeed = relaxed ? TRACE_COVER_RELAXED : COVER_OK;
-  const needStr   = strokesNeededFor(ch);   // do not reduce stroke count for 3-stroke kana like ま
-  return committedStrokes >= needStr &&
-         coverage >= coverNeed && overflow <= OVERFLOW_MAX && precision >= PRECISION_OK;
+function updateTraceDoneUi(ready){
+  const btn=$("trace-done-btn");
+  if(!btn) return;
+  btn.disabled = !ready;
+  btn.setAttribute("aria-disabled", String(!ready));
 }
 function noteTraceAttempt(){
   traceAttempts++;
   const ch = current.word[selected.length];
   reinforceTraceGuide(ch);
+  updateTraceDoneUi(false);
   if(traceAttempts >= TRACE_AUTO_ATTEMPTS){
-    $("message").textContent = "いっしょに かこう";
-    speak("いっしょに かこう", 0.85);
-    acceptTraceChar();
+    $("message").textContent = "おてほんを みよう";
+    speak("おてほんを みよう", 0.85);
+    playTraceDemo(true);
     return;
   }
   if(traceAttempts >= TRACE_RELAX_ATTEMPTS){
@@ -1720,8 +1729,9 @@ function noteTraceAttempt(){
 function setupTraceChar(speakIt){
   const ch = current.word[selected.length];
   traceBusy=false; drawing=false;
-  traceAttempts = 0; committedStrokes = 0;
+  traceAttempts = 0; committedStrokes = 0; totalTraceLen = 0;
   clearTraceHelp();
+  updateTraceDoneUi(false);
   // visible faint guide
   drawTraceGuide(ch, "#E8DCC6");
   // offscreen solid render -> sample the glyph pixels we want covered
@@ -1816,6 +1826,7 @@ function padUp(){
     return;
   }
   committedStrokes++;
+  totalTraceLen += curStrokeLen;
   checkTrace();
 }
 function padCancel(){            // iOS palm / multi-touch / scroll: end stroke without committing or scoring
@@ -1845,18 +1856,33 @@ function checkTrace(){
     const x=guidePts[i][0]/4|0, y=guidePts[i][1]/4|0;
     if(inkMask[y*GW+x]) covered++;
   }
-  const coverage=covered/guideArea, overflow=ink/guideArea;
+  const coverage=covered/guideArea;
   const precision=ink?inside/ink:0;
-  if(traceMatches(coverage, overflow, precision, ch)){
-    acceptTraceChar();
-  } else if(committedStrokes < strokesNeededFor(ch)){
-    $("message").textContent = "つぎの せん かこう";   // gentle: draw the next stroke (no red X)
+  const need = strokesNeededFor(ch);
+  const enoughStrokes = committedStrokes >= need;
+  const enoughLength = totalTraceLen >= Math.max(80, need * 55);
+  const touchedGuide = coverage >= 0.34 && precision >= 0.34;
+  const notTooMuch = ink <= guideArea * 1.95;
+  const ready = enoughStrokes && enoughLength && touchedGuide && notTooMuch;
+  updateTraceDoneUi(ready);
+  if(ready){
+    $("message").textContent = "できたら おしてね";
+  } else if(!enoughStrokes){
+    $("message").textContent = "つぎの せん かこう";
+  } else if(!touchedGuide){
+    $("message").textContent = "きいろの じを なぞろう";
+  } else if(!notTooMuch){
+    $("message").textContent = "ゆっくり なぞろう";
+  } else {
+    $("message").textContent = "もうすこし なぞってね";
   }
 }
 function acceptTraceChar(){
   clearTraceHelp();
   traceBusy=true;
   committedStrokes=0;
+  totalTraceLen=0;
+  updateTraceDoneUi(false);
   const ch=current.word[selected.length];
   const willComplete = selected.length + 1 === current.word.length;
   selected.push(ch);
@@ -2254,6 +2280,10 @@ $("ear-btn").addEventListener("click", ()=>{
 });
 $("ear-repeat-btn").addEventListener("click", ()=>speakWordSlow(current.word));
 $("demo-btn").addEventListener("click", ()=>playTraceDemo(false));
+$("trace-done-btn").addEventListener("click", ()=>{
+  if(traceBusy || $("trace-done-btn").disabled) return;
+  acceptTraceChar();
+});
 $("sound-toggle").addEventListener("click", toggleSound);
 $("sheet-close").addEventListener("click", closeParents);
 $("parent-veil").addEventListener("click",(e)=>{ if(e.target===$("parent-veil")) closeParents(); });
@@ -2338,6 +2368,8 @@ $("clear-btn").addEventListener("click",()=>{
   if(traceBusy) return;
   padCtx.clearRect(0,0,PAD,PAD);
   committedStrokes=0;
+  totalTraceLen=0;
+  updateTraceDoneUi(false);
   noteTraceAttempt();
 });
 
