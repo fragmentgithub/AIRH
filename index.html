@@ -407,6 +407,7 @@ body.lefty .pad-wrap{margin-left:max(0px,calc((100% - min(76vw,300px)) * .18));m
 .custom-emojis{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;}
 .custom-emoji{min-height:40px;border:none;border-radius:12px;background:var(--paper-2);font-size:22px;cursor:pointer;}
 .custom-emoji.is-on{outline:3px solid var(--sun);background:var(--card);}
+.custom-feedback{min-height:18px;color:var(--coral-ink);font-weight:800;font-size:13px;line-height:1.35;}
 .custom-list{display:flex;flex-wrap:wrap;gap:6px;color:var(--ink-soft);font-weight:800;font-size:13px;}
 .trail-chart{width:100%;height:42px;}
 .trail-chart svg{width:100%;height:42px;display:block;}
@@ -651,6 +652,7 @@ body.lefty .pad-wrap{margin-left:max(0px,calc((100% - min(76vw,300px)) * .18));m
         <input id="custom-word" inputmode="kana" maxlength="4" placeholder="かな 2〜4もじ" aria-label="かな 2から4もじ" />
         <div class="custom-emojis" id="custom-emojis" aria-label="えを えらぶ"></div>
         <button class="ghost-btn" id="custom-add-btn" type="button">＋ いれる</button>
+        <div class="custom-feedback" id="custom-feedback" role="status" aria-live="polite"></div>
         <div class="custom-list" id="custom-list"></div>
       </div>
     </div>
@@ -727,6 +729,7 @@ const WORDS = [
 
 const SET_SIZE = 5;
 const KANA_POOL = "あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろわをん".split("");
+const LOOKALIKES = [["ね","れ","わ"],["は","ほ","ま"],["さ","き","ち"],["ぬ","め","ね"],["る","ろ"],["つ","う"]];
 const CUSTOM_EMOJIS = ["😊","⭐","🌸","🚗","🐶","🐱","🐰","🍎","🍙","🏠","🎂","🧸"];
 const PROFILE_EMOJIS = ["🐥","🐰","🐼","🦊","🐸","🐨"];
 const MIRROR_KANA = "くこしつてとひふへみもやゆよらりるろん".split("");
@@ -773,7 +776,6 @@ const MSG_RIGHT = ["できたね！","やったね！","すごい！"];
 /* ---------- persistent state -------------------------------- */
 const BASE_STORE_KEY = "hiragana-asobi-v1";
 const PROFILE_KEY = BASE_STORE_KEY+"-profiles";
-const PROFILE_AVATARS = ["🐥","🐰","🐼"];
 function loadProfiles(){
   try{
     const p = JSON.parse(localStorage.getItem(PROFILE_KEY));
@@ -835,7 +837,22 @@ let locked = false;      // ignore taps during transitions
 let setMisses = [];
 let clapCount = 0, teachIndex = -1, mirrorAnswer = "", mirrorTarget = "";
 let suppressClick = false, peepTimer = null, mouthTimer = null, traceDemoTimer = null, traceDemoFrame = null;
+let solveTimer = null, navLock = false;
 let playTick = null, tickStart = 0;
+
+function clearSolveTimer(){
+  if(solveTimer){
+    clearTimeout(solveTimer);
+    solveTimer = null;
+  }
+}
+function scheduleSolve(fn, delay){
+  clearSolveTimer();
+  solveTimer = setTimeout(()=>{
+    solveTimer = null;
+    fn();
+  }, delay);
+}
 
 function checkpointPlay(){
   if(!tickStart) return;
@@ -1012,10 +1029,30 @@ function allWords(){
 function wordById(id){
   return allWords().find(w=>w.id===id);
 }
+function clusterMates(kana){
+  const out = new Set();
+  for(const c of LOOKALIKES) if(c.includes(kana)) c.forEach(k=>out.add(k));
+  return out;
+}
 function buildChoices(word){
   const letters = [...new Set(word.split(""))];
-  const pool = shuffle(KANA_POOL.filter(k=>!letters.includes(k)));
-  return letters.concat(pool).slice(0, Math.max(4, Math.min(6, letters.length+2)));
+  const banned = new Set();
+  letters.forEach(l => clusterMates(l).forEach(k => banned.add(k)));
+  const need = Math.max(4, Math.min(6, letters.length+2));
+  const picked = [];
+  for(const k of shuffle(KANA_POOL.filter(k=>!letters.includes(k) && !banned.has(k)))){
+    if(picked.some(p => clusterMates(p).has(k))) continue;
+    picked.push(k);
+    if(letters.length + picked.length >= need) break;
+  }
+  const out = letters.concat(picked);
+  if(out.length < need){
+    for(const k of shuffle(KANA_POOL.filter(x=>!out.includes(x)))){
+      out.push(k);
+      if(out.length >= need) break;
+    }
+  }
+  return out.slice(0, need);
 }
 function validCustomWord(word){
   return /^[あ-ん]{2,4}$/.test(word) && [...word].every(ch=>KANA_POOL.includes(ch));
@@ -1198,17 +1235,12 @@ function updateClap(){
 }
 function clapTap(){
   if(locked) return;
-  clapCount++;
+  clapCount = Math.min(clapCount + 1, current.word.length);
   blip("tap"); updateClap();
-  if(clapCount === current.word.length){
+  if(clapCount >= current.word.length){
     locked=true;
     speakWordSlow(current.word);
-    setTimeout(onCorrect, Math.max(650, current.word.length*520));
-  }else if(clapCount > current.word.length){
-    wrongCount++;
-    $("message").textContent = "もういっかい";
-    setPeepMood("think");
-    setTimeout(()=>{ clapCount=0; updateClap(); $("message").textContent=""; }, 620);
+    scheduleSolve(onCorrect, Math.max(650, current.word.length*520));
   }
 }
 function renderMirror(){
@@ -1227,7 +1259,7 @@ function renderMirror(){
 }
 function mirrorPick(ok){
   if(locked) return;
-  if(ok){ locked=true; blip("good"); speakKana(mirrorAnswer); setTimeout(onCorrect, 520); }
+  if(ok){ locked=true; blip("good"); speakKana(mirrorAnswer); scheduleSolve(onCorrect, 520); }
   else{
     wrongCount++; $("message").textContent="こっちかな？"; setPeepMood("think");
     $("mirror-choices").classList.add("is-wrong");
@@ -1261,7 +1293,7 @@ function teachPick(letter){
     renderSlots(true);
     $("message").textContent="ありがとう！";
     locked=true; blip("good"); speakKana(letter);
-    setTimeout(onCorrect, 620);
+    scheduleSolve(onCorrect, 620);
   }else{
     wrongCount++; $("message").textContent="よくみてみよう"; setPeepMood("think");
   }
@@ -1288,6 +1320,7 @@ function loadQuestion(){
   $("mirror-area").hidden = mode!=="mirror";
   $("ear-area").hidden = mode!=="ear";
   $("slots").hidden = ["clap","mirror","ear"].includes(mode);
+  $("redo-btn").hidden = mode!=="cards";
   if(mode==="trace"){ setupTraceChar(false); }
   else if(mode==="clap"){ $("prompt-text").textContent="なんかい たたく？"; renderClap(); }
   else if(mode==="mirror"){ $("prompt-text").textContent="ただしいの どっち？"; renderMirror(); }
@@ -1438,7 +1471,8 @@ function setupTraceChar(speakIt){
   $("pad-done").classList.remove("is-on");
   $("message").textContent = "「"+ch+"」を ゆびで かいてね";
   startTraceHelp(ch);
-  traceDemoTimer=setTimeout(()=>playTraceDemo(true), 280);
+  const reduceMotion = store.calm || (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  if(!reduceMotion) traceDemoTimer=setTimeout(()=>playTraceDemo(true), 280);
   if(speakIt) speak(ch+"、かいてね", 0.85);
 }
 function playTraceDemo(silent){
@@ -1522,7 +1556,7 @@ function acceptTraceChar(){
   setPeepMood("peek");
   const dn=$("pad-done"); dn.classList.remove("is-on"); void dn.offsetWidth; dn.classList.add("is-on");
   renderSlots(true);
-  setTimeout(()=>{
+  scheduleSolve(()=>{
     if(selected.length===current.word.length) onCorrect();
     else setupTraceChar(true);
   }, 650);
@@ -1542,7 +1576,7 @@ function tapLetter(letter){
   updateHintGlow();
   if(selected.length === current.word.length){
     locked = true;
-    setTimeout(judge, 480);
+    scheduleSolve(judge, 480);
   }
 }
 function removeAt(i){
@@ -1579,6 +1613,7 @@ function onWrong(){
   }, 620);
 }
 function onCorrect(){
+  if(!screens.quiz.classList.contains("is-active")) return;
   store.correct++;
   store.todayStamps++; setStamps++;
   if(current && !store.friends.includes(current.id)){
@@ -1642,6 +1677,7 @@ function recordSetHistory(){
 }
 function showRest(){
   stopPlayClock();
+  clearSolveTimer();
   clearTraceHelp();
   locked=false; drawing=false; traceBusy=false;
   show("rest");
@@ -1665,7 +1701,7 @@ function renderProfiles(){
 }
 function switchProfile(id){
   if(id===activeProfileId) return;
-  stopSpeaking(); stopPlayClock(); clearTraceHelp();
+  stopSpeaking(); stopPlayClock(); clearSolveTimer(); clearTraceHelp();
   activeProfileId=id; saveProfiles();
   store=loadStore(); saveStore();
   applyMuteUi(); applyModeUi(); applyLimitUi(); applyPrefs();
@@ -1698,6 +1734,7 @@ function renderHome(){
 }
 function startSet(){
   // a tap unlocks audio context / speech on mobile
+  clearSolveTimer();
   primeSpeech();
   if(actx && actx.state==="suspended") actx.resume();
   if(timeUp()){ showRest(); return; }
@@ -1707,6 +1744,7 @@ function startSet(){
 function goHome(){
   stopSpeaking();
   stopPlayClock();
+  clearSolveTimer();
   clearTraceHelp();
   locked=false; drawing=false; traceBusy=false;
   renderHome(); show("home");
@@ -1761,12 +1799,15 @@ function renderCustomList(){
     box.appendChild(s);
   });
 }
+function setCustomFeedback(text){
+  $("custom-feedback").textContent = text || "";
+}
 function addCustomWord(){
   const input=$("custom-word");
   const word=(input.value||"").trim();
   const emoji=(document.querySelector(".custom-emoji.is-on")||{}).dataset?.emoji || "⭐";
   if(!validCustomWord(word)){
-    $("focus-text").textContent="かな 2〜4もじで いれてください";
+    setCustomFeedback("かな 2〜4もじで いれてください");
     return;
   }
   const id="custom-"+Date.now()+"-"+word;
@@ -1775,7 +1816,7 @@ function addCustomWord(){
   input.value="";
   saveStore();
   renderCustomList();
-  $("focus-text").textContent=word+" を いれました";
+  setCustomFeedback(word+" を いれました");
 }
 function addProfile(){
   if(profiles.items.length>=3) return;
@@ -1853,21 +1894,27 @@ $("listen-btn").addEventListener("click", ()=>speak(current.word));
 $("quit-btn").addEventListener("click", goHome);
 $("mute-btn").addEventListener("click", toggleSound);
 $("redo-btn").addEventListener("click", ()=>{
-  if(locked) return;
+  if(locked || store.mode!=="cards") return;
   selected=[]; renderSlots(false); updateHintGlow(); $("message").textContent="";
 });
-$("next-btn").addEventListener("click", nextQuestion);
+$("next-btn").addEventListener("click", ()=>{
+  if(navLock) return;
+  navLock = true;
+  nextQuestion();
+  setTimeout(()=>{ navLock = false; }, 400);
+});
 $("again-btn").addEventListener("click", startSet);
 $("gohome-btn").addEventListener("click", goHome);
 $("rest-home-btn").addEventListener("click", goHome);
 $("parent-link").addEventListener("click", openParents);
 $("clap-btn").addEventListener("click", clapTap);
 $("clap-reset").addEventListener("click", ()=>{
+  if(locked) return;
   clapCount=0; updateClap(); $("message").textContent="";
 });
 $("ear-btn").addEventListener("click", ()=>{
   if(locked) return;
-  locked=true; blip("good"); setTimeout(onCorrect, 260);
+  locked=true; blip("good"); scheduleSolve(onCorrect, 260);
 });
 $("ear-repeat-btn").addEventListener("click", ()=>speakWordSlow(current.word));
 $("demo-btn").addEventListener("click", ()=>playTraceDemo(false));
