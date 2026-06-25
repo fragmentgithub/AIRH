@@ -1072,10 +1072,9 @@ function speak(text, rate){
     u.rate = rate || 0.95;  // natural speed
     u.pitch = 1.0;          // natural pitch (was 1.15 — sounded squeaky)
     u.volume = 0.9;
-    requestAnimationFrame(()=>{
-      if(seq !== speechSeq || !store.soundOn) return;
-      try{ speechSynthesis.speak(u); }catch(e){}
-    });
+    if(seq !== speechSeq || !store.soundOn) return;
+    try{ speechSynthesis.resume(); }catch(e){}
+    speechSynthesis.speak(u);
   }catch(e){}
 }
 function stopSpeaking(){
@@ -1172,7 +1171,10 @@ function speakKana(kana){
   speak(kana, 0.8);
 }
 function speakWordSlow(word){
-  [...word].forEach((ch,i)=>setTimeout(()=>speakKana(ch), i*520));
+  const chars = [...word];
+  if(!chars.length) return;
+  speakKana(chars[0]);
+  chars.slice(1).forEach((ch,i)=>setTimeout(()=>speakKana(ch), (i+1)*520));
 }
 function bindPreview(el, textFn){
   if(el.dataset.previewBound){
@@ -1416,8 +1418,10 @@ function loadQuestion(){
   else { renderChoices(); }
   show("quiz");
   startPlayClock();
-  // read the word aloud shortly after it appears
-  setTimeout(()=> mode==="ear" ? speakWordSlow(current.word) : speak(current.word), 420);
+  // Start speech directly inside the tap/click call stack; some mobile browsers
+  // block Web Speech if the first audible utterance is delayed.
+  if(mode==="ear") speakWordSlow(current.word);
+  else speak(current.word);
 }
 
 /* ---------- handwriting (trace) mode ------------------------ */
