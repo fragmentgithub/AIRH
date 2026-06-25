@@ -900,6 +900,8 @@ const TRACE_PATTERNS = {
   loop:[[[152,54],[96,78],[82,132],[111,188],[162,214],[213,181],[205,110],[150,88]]],
   loopTail:[[[151,52],[96,83],[87,142],[118,192],[172,211],[219,172],[200,110],[142,96],[107,146],[154,240]]],
   twoLine:[[[100,66],[106,210]],[[206,76],[190,224]]],
+  u:[[[133,66],[180,74]],[[111,121],[162,105],[202,132],[195,177],[155,214],[104,226]]],
+  to:[[[151,63],[147,126]],[[194,110],[139,138],[102,179],[124,218],[194,222]]],
   hook:[[[154,54],[148,154],[168,218],[208,232]]],
   curve:[[[82,86],[118,62],[182,70],[220,119],[187,182],[107,224]]],
   sweep:[[[72,112],[126,78],[200,90],[218,126],[184,172],[116,218]]],
@@ -921,10 +923,10 @@ const TRACE_PATTERNS = {
   wa:[[[106,64],[109,226]],[[106,139],[168,92],[221,130],[190,203]]]
 };
 const TRACE_PATH_MAP = {
-  あ:"loopTail",い:"twoLine",う:"hook",え:"zig",お:"loopTail",
+  あ:"loopTail",い:"twoLine",う:"u",え:"zig",お:"loopTail",
   か:"crossHook",き:"three",く:"slant",け:"cross",こ:"topBottom",
   さ:"three",し:"curve",す:"loop",せ:"cross",そ:"softS",
-  た:"cross",ち:"sweep",つ:"sweep",て:"sweep",と:"hook",
+  た:"cross",ち:"sweep",つ:"sweep",て:"sweep",と:"to",
   な:"crossHook",に:"twoLine",ぬ:"loopTail",ね:"wa",の:"loop",
   は:"twoLine",ひ:"curve",ふ:"fu",へ:"chevron",ほ:"cross",
   ま:"three",み:"loopTail",む:"mu",め:"loopTail",も:"mo",
@@ -1082,20 +1084,19 @@ function formatPlaytime(){
 /* handwriting (trace) mode state */
 const PAD = 300;         // internal canvas resolution
 const BRUSH = 28;        // ink stroke width
-const COVER_OK = 0.42;   // fraction of the guide glyph to cover to accept (forgiving for 4yo)
-const OVERFLOW_MAX = 2.2; // ink must not exceed guide*this (blocks full-box scribbling)
-const PRECISION_OK = 0.54; // most ink should stay near the guide shape
+const COVER_OK = 0.5;    // fraction of the guide glyph to cover to accept
+const OVERFLOW_MAX = 1.8; // ink must not exceed guide*this (blocks full-box scribbling)
+const PRECISION_OK = 0.62; // most ink should stay near the guide shape
 const TRACE_HINT_MS = 8000;
 const TRACE_RELAX_MS = 16000;
 const TRACE_AUTO_MS = 24000;
 const TRACE_RELAX_ATTEMPTS = 3;
 const TRACE_AUTO_ATTEMPTS = 5;
-const TRACE_COVER_RELAXED = 0.26;
+const TRACE_COVER_RELAXED = 0.38;
 const TRACE_MIN_STROKE_PX = 26;  // PAD(300) units; shorter drawn length = stray tap, ignored
-const STROKE_CAP = 2;            // never demand more than 2 strokes from a 4yo
 function strokesNeededFor(ch){
   const s = traceStrokes(ch);    // existing trace data (drives the demo); .loop fallback => 1
-  return Math.min((s && s.length) || 1, STROKE_CAP);
+  return (s && s.length) || 1;
 }
 let padCtx = null, padGuideCtx = null;
 let guidePts = [];       // sampled glyph pixels of the current char
@@ -1695,7 +1696,7 @@ function startTraceHelp(ch){
 function traceMatches(coverage, overflow, precision, ch){
   const relaxed   = traceAttempts >= TRACE_RELAX_ATTEMPTS;
   const coverNeed = relaxed ? TRACE_COVER_RELAXED : COVER_OK;
-  const needStr   = relaxed ? 1 : strokesNeededFor(ch);   // rescue: 1 stroke when struggling
+  const needStr   = strokesNeededFor(ch);   // do not reduce stroke count for 3-stroke kana like ま
   return committedStrokes >= needStr &&
          coverage >= coverNeed && overflow <= OVERFLOW_MAX && precision >= PRECISION_OK;
 }
