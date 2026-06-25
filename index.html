@@ -86,6 +86,7 @@ body.calm *{
   animation-iteration-count:1 !important;
   transition-duration:.06s !important;
 }
+body.modal-open{overflow:hidden;}
 body.big-targets .choices{grid-template-columns:repeat(2,1fr);}
 body.big-targets .tile{max-height:none;min-height:112px;font-size:clamp(48px,15vw,76px);}
 body.lefty .choices{direction:rtl;}
@@ -188,9 +189,14 @@ body.lefty .pad-wrap{margin-left:max(0px,calc((100% - min(76vw,300px)) * .18));m
 .tray__none{color:var(--ink-soft);font-weight:700;font-size:13px;}
 .tray__more{font-weight:800;color:var(--hana-deep);font-size:15px;}
 
-.home__parent{position:absolute;left:50%;bottom:6px;transform:translateX(-50%);font-size:13px;} /* #app already pads the safe area */
+.home__parent{
+  position:absolute;left:50%;bottom:6px;transform:translateX(-50%);
+  font-size:13px;color:var(--ink-soft);background:rgba(255,255,255,.86);
+  border-radius:var(--r-pill);box-shadow:var(--shadow-soft);padding:8px 14px;
+} /* #app already pads the safe area */
+.home__parent::before{content:"⚙ ";font-size:12px;}
 .friend-hill{
-  width:min(92%,420px);min-height:82px;position:relative;margin:-6px auto 0;
+  width:min(92%,420px);min-height:96px;position:relative;margin:-6px auto 0;
   border-radius:28px 28px 44px 44px;
   background:linear-gradient(180deg,rgba(127,200,232,.14),rgba(127,200,232,0) 48%),linear-gradient(180deg,#DFF3D9,#BEE6AE);
   box-shadow:inset 0 -12px 0 rgba(95,184,114,.12),var(--shadow-soft);
@@ -199,7 +205,8 @@ body.lefty .pad-wrap{margin-left:max(0px,calc((100% - min(76vw,300px)) * .18));m
 .friend-hill::after{content:"";position:absolute;left:-8%;right:-8%;bottom:-28px;height:52px;border-radius:50%;background:#9BD48D;}
 .friend{
   position:absolute;z-index:1;border:none;background:transparent;cursor:pointer;
-  font-size:clamp(22px,7vw,34px);line-height:1;filter:drop-shadow(0 3px 2px rgba(74,59,46,.16));
+  width:38px;height:38px;display:grid;place-items:center;
+  font-size:clamp(20px,6vw,30px);line-height:1;filter:drop-shadow(0 3px 2px rgba(74,59,46,.16));
 }
 .friend.is-new{animation:friend-in .38s ease both;}
 @keyframes friend-in{0%{transform:translateY(12px) scale(.5);opacity:0;}100%{transform:none;opacity:1;}}
@@ -297,11 +304,11 @@ body.lefty .pad-wrap{margin-left:max(0px,calc((100% - min(76vw,300px)) * .18));m
   padding-bottom:4px;
   justify-content:center; /* keep the tiles a centered group — don't spread to the edges on wide/tablet screens */
 }
-.choices.cols-2{grid-template-columns:repeat(2,minmax(0,118px));}
-.choices.cols-3{grid-template-columns:repeat(3,minmax(0,118px));}
+.choices.cols-2{grid-template-columns:repeat(2,minmax(0,112px));}
+.choices.cols-3{grid-template-columns:repeat(3,minmax(0,112px));}
 .tile{
   aspect-ratio:1/1;
-  max-height:118px;
+  max-height:112px;
   border:none;cursor:pointer;
   background:var(--card);
   border-radius:var(--r-card);
@@ -315,6 +322,7 @@ body.lefty .pad-wrap{margin-left:max(0px,calc((100% - min(76vw,300px)) * .18));m
 .tile:active{transform:translateY(4px);box-shadow:0 2px 0 rgba(74,59,46,.10),0 5px 12px rgba(74,59,46,.12);}
 .tile:focus-visible{outline:4px solid var(--coral);outline-offset:3px;}
 .tile.is-hint{animation:hint-glow 1.1s ease-in-out infinite;}
+.tile.is-hint:focus-visible{outline-color:var(--sun);}
 .tile.is-dwell{box-shadow:var(--shadow-card),0 0 0 10px rgba(127,200,232,.45);}
 /* glow stays put — no transform — so the tap target never moves under a small finger */
 @keyframes hint-glow{0%,100%{box-shadow:var(--shadow-card),0 0 0 0 rgba(255,194,75,0);}50%{box-shadow:var(--shadow-card),0 0 0 8px rgba(255,194,75,.65);}}
@@ -378,6 +386,28 @@ body.lefty .pad-wrap{margin-left:max(0px,calc((100% - min(76vw,300px)) * .18));m
 .mirror-choices.is-wrong{animation:wobble .5s ease;}
 .mirror-choice.is-flip span{display:inline-block;transform:scaleX(-1);}
 .mirror-choice.is-rotate span{display:inline-block;transform:rotate(180deg);}
+
+.trace-actions{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;}
+.quiz[data-mode="trace"]{gap:clamp(4px,1vh,10px);}
+.quiz[data-mode="trace"] .hint{gap:4px;margin-top:0;}
+.quiz[data-mode="trace"] .hint__card{
+  width:clamp(96px,27vw,132px);
+  height:clamp(96px,27vw,132px);
+  font-size:clamp(52px,14vw,76px);
+  border-radius:24px;
+}
+.quiz[data-mode="trace"] .mouth-cue{min-height:24px;font-size:22px;}
+.quiz[data-mode="trace"] .listen-btn{font-size:clamp(14px,3.6vw,16px);padding:.42em 1em;}
+.quiz[data-mode="trace"] .slots{margin:4px 0;}
+.quiz[data-mode="trace"] .slot{
+  width:clamp(50px,13vw,68px);
+  height:clamp(58px,15vw,76px);
+  font-size:clamp(28px,8vw,42px);
+}
+.quiz[data-mode="trace"] .message{min-height:1.35em;font-size:clamp(16px,4vw,20px);}
+.quiz[data-mode="trace"] #trace-area{margin-top:0;align-items:center;gap:6px;}
+.quiz[data-mode="trace"] .pad-wrap{width:min(58vw,240px);}
+.quiz[data-mode="trace"] .redo{margin-top:0;}
 
 /* ---- play-mode selector (parent sheet) ---- */
 .mode-seg{
@@ -462,6 +492,7 @@ body.lefty .pad-wrap{margin-left:max(0px,calc((100% - min(76vw,300px)) * .18));m
   max-height:calc(100dvh - 40px);overflow-y:auto;overscroll-behavior:contain;
 }
 .sheet h2{font-family:var(--font-display);font-weight:900;margin:0 0 4px;font-size:22px;color:var(--ink);}
+.sheet h2:focus{outline:none;}
 .sheet p.note{margin:0 0 18px;color:var(--ink-soft);font-size:13px;line-height:1.5;}
 .sheet__row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-top:2px solid var(--paper-2);}
 .sheet__row .k{font-weight:800;color:var(--ink);}
@@ -510,7 +541,7 @@ body.lefty .pad-wrap{margin-left:max(0px,calc((100% - min(76vw,300px)) * .18));m
 
     <button class="btn btn--big" id="start-btn">はじめる</button>
 
-    <button class="ghost-btn home__parent" id="parent-link">おうちのかた</button>
+    <button class="ghost-btn home__parent" id="parent-link" aria-label="お家の方">お家の方</button>
   </section>
 
   <!-- ============ QUIZ ============ -->
@@ -546,8 +577,10 @@ body.lefty .pad-wrap{margin-left:max(0px,calc((100% - min(76vw,300px)) * .18));m
         <span class="ghost-dot" id="ghost-dot" aria-hidden="true"></span>
         <span class="pad-done" id="pad-done" aria-hidden="true">✓</span>
       </div>
-      <button class="ghost-btn redo" id="demo-btn">▶ おてほん</button>
-      <button class="ghost-btn redo" id="clear-btn">↺ けす</button>
+      <div class="trace-actions">
+        <button class="ghost-btn redo" id="demo-btn">▶ おてほん</button>
+        <button class="ghost-btn redo" id="clear-btn">↺ けす</button>
+      </div>
     </div>
 
     <div class="answer-area clap-area" id="clap-area" hidden>
@@ -602,73 +635,73 @@ body.lefty .pad-wrap{margin-left:max(0px,calc((100% - min(76vw,300px)) * .18));m
 
 <!-- ============ PARENT SHEET ============ -->
 <div class="sheet-veil" id="parent-veil" aria-hidden="true">
-  <div class="sheet" role="dialog" aria-modal="true" aria-label="おうちのかたへ">
-    <h2>おうちのかたへ</h2>
-    <p class="note">4さい むけの ことばあそびです。1セットは 5もん。みじかく あそべます。</p>
+  <div class="sheet" id="parent-sheet" role="dialog" aria-modal="true" aria-labelledby="parent-title">
+    <h2 id="parent-title" tabindex="-1">お家の方へ</h2>
+    <p class="note">4歳向けのことば遊びです。1セットは5問。短く遊べます。</p>
     <div class="sheet__row">
-      <span class="k">おと</span>
-      <button class="toggle is-on" id="sound-toggle" role="switch" aria-checked="true" aria-label="おと オン・オフ"></button>
+      <span class="k">音</span>
+      <button class="toggle is-on" id="sound-toggle" role="switch" aria-checked="true" aria-label="音 オン・オフ"></button>
     </div>
     <div class="sheet__row">
-      <span class="k">あそびかた</span>
-      <div class="mode-seg mode-seg--wrap" id="mode-seg" role="group" aria-label="あそびかた">
-        <button class="mode-opt" type="button" data-mode="cards">🃏 ふだ</button>
-        <button class="mode-opt" type="button" data-mode="trace">✏️ てがき</button>
-        <button class="mode-opt" type="button" data-mode="clap">👏 たたく</button>
-        <button class="mode-opt" type="button" data-mode="mirror">↔ むき</button>
-        <button class="mode-opt" type="button" data-mode="teach">🐥 おしえる</button>
-        <button class="mode-opt" type="button" data-mode="ear">👂 おみみ</button>
+      <span class="k">遊び方</span>
+      <div class="mode-seg mode-seg--wrap" id="mode-seg" role="group" aria-label="遊び方">
+        <button class="mode-opt" type="button" data-mode="cards">🃏 札</button>
+        <button class="mode-opt" type="button" data-mode="trace">✏️ 手書き</button>
+        <button class="mode-opt" type="button" data-mode="clap">👏 拍手</button>
+        <button class="mode-opt" type="button" data-mode="mirror">↔ 向き</button>
+        <button class="mode-opt" type="button" data-mode="teach">🐥 教える</button>
+        <button class="mode-opt" type="button" data-mode="ear">👂 聞く</button>
       </div>
     </div>
     <div class="sheet__row sheet__row--stack">
-      <span class="k">やさしさ</span>
-      <div class="mode-seg mode-seg--wrap" id="pref-seg" role="group" aria-label="やさしさ">
-        <button class="mode-opt" type="button" data-pref="calm">しずか</button>
-        <button class="mode-opt" type="button" data-pref="bigTargets">おおきい</button>
-        <button class="mode-opt" type="button" data-pref="lefty">ひだりて</button>
+      <span class="k">サポート</span>
+      <div class="mode-seg mode-seg--wrap" id="pref-seg" role="group" aria-label="サポート">
+        <button class="mode-opt" type="button" data-pref="calm">静か</button>
+        <button class="mode-opt" type="button" data-pref="bigTargets">大きい</button>
+        <button class="mode-opt" type="button" data-pref="lefty">左手</button>
       </div>
     </div>
     <div class="sheet__row sheet__row--stack">
-      <span class="k">あそぶ じかん</span>
-      <div class="mode-seg" id="limit-seg" role="group" aria-label="あそぶ じかんの せいげん">
+      <span class="k">遊ぶ時間</span>
+      <div class="mode-seg" id="limit-seg" role="group" aria-label="遊ぶ時間の制限">
         <button class="mode-opt" type="button" data-limit="0">なし</button>
-        <button class="mode-opt" type="button" data-limit="5">5ふん</button>
-        <button class="mode-opt" type="button" data-limit="10">10ぷん</button>
-        <button class="mode-opt" type="button" data-limit="15">15ふん</button>
+        <button class="mode-opt" type="button" data-limit="5">5分</button>
+        <button class="mode-opt" type="button" data-limit="10">10分</button>
+        <button class="mode-opt" type="button" data-limit="15">15分</button>
       </div>
     </div>
     <div class="sheet__row">
-      <span class="k">きょう あそんだ じかん</span>
-      <span class="v" id="stat-playtime">0ぷん</span>
+      <span class="k">今日遊んだ時間</span>
+      <span class="v" id="stat-playtime">0分</span>
     </div>
     <div class="sheet__row">
-      <span class="k">あそんだ もんだい</span>
+      <span class="k">遊んだ問題</span>
       <span class="v" id="stat-played">0</span>
     </div>
     <div class="sheet__row">
-      <span class="k">せいかい</span>
+      <span class="k">正解</span>
       <span class="v" id="stat-correct">0</span>
     </div>
     <div class="sheet__row sheet__row--stack">
-      <span class="k">ことばを たす</span>
+      <span class="k">ことばを追加</span>
       <div class="custom-panel">
-        <input id="custom-word" inputmode="kana" maxlength="4" placeholder="かな 2〜4もじ" aria-label="かな 2から4もじ" />
-        <div class="custom-emojis" id="custom-emojis" aria-label="えを えらぶ"></div>
-        <button class="ghost-btn" id="custom-add-btn" type="button">＋ いれる</button>
+        <input id="custom-word" inputmode="kana" maxlength="4" placeholder="かな 2〜4文字" aria-label="かな 2から4文字" />
+        <div class="custom-emojis" id="custom-emojis" aria-label="絵を選ぶ"></div>
+        <button class="ghost-btn" id="custom-add-btn" type="button">＋ 追加</button>
         <div class="custom-feedback" id="custom-feedback" role="status" aria-live="polite"></div>
         <div class="custom-list" id="custom-list"></div>
       </div>
     </div>
     <div class="sheet__row sheet__row--stack">
-      <span class="k">こんしゅう</span>
+      <span class="k">今週</span>
       <div class="trail-chart" id="trail-chart" aria-hidden="true"></div>
-      <div class="focus-text" id="focus-text">まだ きろくは ありません</div>
+      <div class="focus-text" id="focus-text">まだ記録はありません</div>
     </div>
     <div class="sheet__row">
-      <span class="k">ひとを ふやす</span>
+      <span class="k">人を増やす</span>
       <button class="ghost-btn" id="profile-add-btn" type="button">＋</button>
     </div>
-    <button class="btn sheet__close" id="sheet-close">とじる</button>
+    <button class="btn sheet__close" id="sheet-close">閉じる</button>
   </div>
 </div>
 
@@ -818,6 +851,23 @@ function loadStore(){
   if(!["cards","trace","clap","mirror","teach","ear"].includes(s.mode)) s.mode = "cards";
   if(!Array.isArray(s.friends)) s.friends = [];
   if(!Array.isArray(s.customWords)) s.customWords = [];
+  else{
+    const seenEmoji = new Set(), seenWord = new Set(), cleaned = [];
+    for(let i=s.customWords.length-1;i>=0;i--){
+      const w=s.customWords[i];
+      if(!w || !validCustomWord(w.word) || !w.emoji) continue;
+      if(seenEmoji.has(w.emoji) || seenWord.has(w.word)) continue;
+      seenEmoji.add(w.emoji); seenWord.add(w.word);
+      cleaned.unshift({
+        id:w.id || ("custom-"+i+"-"+w.word),
+        word:w.word,
+        emoji:w.emoji,
+        level:1,
+        choices:Array.isArray(w.choices) && w.choices.length ? w.choices : buildChoices(w.word)
+      });
+    }
+    s.customWords = cleaned.slice(-12);
+  }
   if(!Array.isArray(s.history)) s.history = [];
   if(!s.misses || typeof s.misses !== "object") s.misses = {};
   if(typeof s.calm !== "boolean") s.calm = false;
@@ -884,7 +934,7 @@ function playScreenActive(){
   return screens.quiz.classList.contains("is-active") || screens.success.classList.contains("is-active");
 }
 function formatPlaytime(){
-  return Math.round(store.playedMs / 60000) + "ぷん";
+  return Math.round(store.playedMs / 60000) + "分";
 }
 
 /* handwriting (trace) mode state */
@@ -1245,6 +1295,11 @@ function updateHintGlow(){
     t.classList.toggle("is-hint", wrongCount>=1 && t.dataset.letter===next);
   });
 }
+function focusNextHint(){
+  if(store.mode!=="cards") return;
+  const hint = document.querySelector(".tile.is-hint");
+  if(hint && typeof hint.focus==="function") hint.focus({preventScroll:true});
+}
 function recordMiss(kana){
   if(!kana) return;
   store.misses[kana] = (store.misses[kana]||0)+1;
@@ -1345,6 +1400,7 @@ function loadQuestion(){
   $("hint-emoji").setAttribute("aria-label", "ヒントの え");
   renderProgress(); renderSlots(false);
   const mode = store.mode;
+  screens.quiz.dataset.mode = mode;
   $("cards-area").hidden = !["cards","teach"].includes(mode);
   $("trace-area").hidden = mode!=="trace";
   $("clap-area").hidden = mode!=="clap";
@@ -1618,13 +1674,13 @@ function tapLetter(letter){
   const willBeCorrect = next.length === current.word.length && next.join("") === current.word;
   selected.push(letter);
   blip("tap");
-  if(!willBeCorrect) speakKana(letter);
+  speakKana(letter);
   setPeepMood("peek");
   renderSlots(true);
   updateHintGlow();
   if(selected.length === current.word.length){
     locked = true;
-    scheduleSolve(judge, 480);
+    scheduleSolve(judge, 760);
   }
 }
 function removeAt(i){
@@ -1657,6 +1713,7 @@ function onWrong(){
     selected = selected.slice(0, keep);
     renderSlots(false);
     updateHintGlow();
+    focusNextHint();
     locked = false;
   }, 620);
 }
@@ -1758,11 +1815,18 @@ function switchProfile(id){
 function renderHill(){
   const hill=$("friend-hill"); hill.innerHTML="";
   const ids=(store.friends||[]).slice(-12);
-  ids.forEach(id=>{
+  const perRow = 6;
+  const topRows = Math.ceil(ids.length / perRow);
+  ids.forEach((id,i)=>{
     const w=wordById(id); if(!w) return;
     const b=document.createElement("button");
     b.type="button"; b.className="friend"+(store.lastFriend===id?" is-new":"");
-    b.textContent=w.emoji; b.style.left=(8+hashPos(id,78))+"%"; b.style.top=(10+hashPos(id+"y",46))+"%";
+    const row = Math.floor(i / perRow);
+    const col = i % perRow;
+    const rowCount = Math.min(perRow, ids.length - row * perRow);
+    const x = rowCount===1 ? 45 : 8 + col * (84 / (rowCount - 1));
+    const y = topRows===1 ? 33 : (row===0 ? 10 : 55);
+    b.textContent=w.emoji; b.style.left=x+"%"; b.style.top=y+"%";
     b.setAttribute("aria-label", w.word);
     b.addEventListener("click",()=>speak(w.word));
     hill.appendChild(b);
@@ -1855,7 +1919,12 @@ function addCustomWord(){
   const word=(input.value||"").trim();
   const emoji=(document.querySelector(".custom-emoji.is-on")||{}).dataset?.emoji || "⭐";
   if(!validCustomWord(word)){
-    setCustomFeedback("かな 2〜4もじで いれてください");
+    setCustomFeedback("かな2〜4文字で入力してください");
+    return;
+  }
+  const sameEmoji = (store.customWords||[]).find(w=>w.emoji===emoji && w.word!==word);
+  if(sameEmoji){
+    setCustomFeedback(emoji+" は "+sameEmoji.word+" で使っています");
     return;
   }
   const id="custom-"+Date.now()+"-"+word;
@@ -1864,7 +1933,7 @@ function addCustomWord(){
   input.value="";
   saveStore();
   renderCustomList();
-  setCustomFeedback(word+" を いれました");
+  setCustomFeedback(word+" を追加しました");
 }
 function addProfile(){
   if(profiles.items.length>=3) return;
@@ -1880,7 +1949,7 @@ function renderTrail(){
   const hist=(store.history||[]).slice(-7);
   if(!hist.length){
     chart.innerHTML="";
-    $("focus-text").textContent="まだ きろくは ありません";
+    $("focus-text").textContent="まだ記録はありません";
     return;
   }
   const pts=hist.map((h,i)=>{
@@ -1890,7 +1959,7 @@ function renderTrail(){
   }).join(" ");
   chart.innerHTML='<svg viewBox="0 0 120 42" aria-hidden="true"><polyline points="'+pts+'" fill="none" stroke="#5FB872" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><line x1="6" y1="35" x2="114" y2="35" stroke="#E8DCC6" stroke-width="3"/></svg>';
   const misses=Object.entries(store.misses||{}).sort((a,b)=>b[1]-a[1]).slice(0,3).map(x=>x[0]).join("・");
-  $("focus-text").textContent=misses ? "もうすこし: "+misses : "こんしゅう よく できています";
+  $("focus-text").textContent=misses ? "もう少し: "+misses : "今週はよくできています";
 }
 let parentTrap = null;
 let parentReturnFocus = null;
@@ -1909,7 +1978,16 @@ function openParents(){
   parentReturnFocus = (document.activeElement instanceof HTMLElement) ? document.activeElement : $("parent-link");
   $("parent-veil").classList.add("is-open");
   $("parent-veil").setAttribute("aria-hidden","false");
-  $("sheet-close").focus();
+  $("app").inert = true;
+  $("app").setAttribute("aria-hidden","true");
+  document.body.classList.add("modal-open");
+  const sheet = $("parent-sheet");
+  sheet.scrollTop = 0;
+  requestAnimationFrame(()=>{
+    sheet.scrollTop = 0;
+    try{ $("parent-title").focus({preventScroll:true}); }
+    catch(e){ $("parent-title").focus(); }
+  });
   parentTrap = (e)=>{
     if(e.key !== "Tab") return;
     const nodes = $("parent-veil").querySelectorAll(
@@ -1930,6 +2008,9 @@ function closeParents(){
   const wasOpen = $("parent-veil").classList.contains("is-open");
   $("parent-veil").classList.remove("is-open");
   $("parent-veil").setAttribute("aria-hidden","true");
+  $("app").inert = false;
+  $("app").removeAttribute("aria-hidden");
+  document.body.classList.remove("modal-open");
   if(parentTrap){ document.removeEventListener("keydown", parentTrap, true); parentTrap = null; }
   const target = parentReturnFocus || $("parent-link");
   parentReturnFocus = null;
