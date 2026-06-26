@@ -648,13 +648,13 @@ body.lefty .pad-wrap{margin-left:max(0px,calc((100% - min(76vw,300px)) * .18));m
         <span class="home-mode__icon" aria-hidden="true">✏️</span><span class="home-mode__label">てがき</span>
       </button>
       <button class="home-mode" type="button" data-home-mode="clap" aria-pressed="false">
-        <span class="home-mode__icon" aria-hidden="true">👏</span><span class="home-mode__label">てびょうし</span>
+        <span class="home-mode__icon" aria-hidden="true">👏</span><span class="home-mode__label">たたく</span>
       </button>
       <button class="home-mode" type="button" data-home-mode="mirror" aria-pressed="false">
         <span class="home-mode__icon" aria-hidden="true">↔</span><span class="home-mode__label">むき</span>
       </button>
       <button class="home-mode" type="button" data-home-mode="teach" aria-pressed="false">
-        <span class="home-mode__icon" aria-hidden="true">🐥</span><span class="home-mode__label">おしえる</span>
+        <span class="home-mode__icon" aria-hidden="true">💬</span><span class="home-mode__label">おしえる</span>
       </button>
       <button class="home-mode" type="button" data-home-mode="ear" aria-pressed="false">
         <span class="home-mode__icon" aria-hidden="true">👂</span><span class="home-mode__label">おみみ</span>
@@ -1114,6 +1114,7 @@ let drawing = false, traceBusy = false;
 let traceAttempts = 0, traceTimers = [];
 let curStrokeLen = 0, committedStrokes = 0;
 let totalTraceLen = 0;
+let traceDoneUnlocked = false;
 let lastXY = [0,0];
 
 /* ---------- elements ---------------------------------------- */
@@ -1696,7 +1697,9 @@ function startTraceHelp(ch){
     }, TRACE_RELAX_MS),
     setTimeout(()=>{
       if(!stillThisTraceChar(ch)) return;
-      $("message").textContent = "いっしょに かこう";
+      traceDoneUnlocked = true;
+      updateTraceDoneUi(true);
+      $("message").textContent = "できたら おしてね";
       speak("いっしょに かこう", 0.85);
       playTraceDemo(true);
     }, TRACE_AUTO_MS),
@@ -1712,11 +1715,17 @@ function noteTraceAttempt(){
   traceAttempts++;
   const ch = current.word[selected.length];
   reinforceTraceGuide(ch);
-  updateTraceDoneUi(false);
+  updateTraceDoneUi(traceDoneUnlocked);
   if(traceAttempts >= TRACE_AUTO_ATTEMPTS){
-    $("message").textContent = "おてほんを みよう";
-    speak("おてほんを みよう", 0.85);
+    traceDoneUnlocked = true;
+    updateTraceDoneUi(true);
+    $("message").textContent = "できたら おしてね";
+    speak("できたら おしてね", 0.85);
     playTraceDemo(true);
+    return;
+  }
+  if(traceDoneUnlocked){
+    $("message").textContent = "できたら おしてね";
     return;
   }
   if(traceAttempts >= TRACE_RELAX_ATTEMPTS){
@@ -1729,7 +1738,7 @@ function noteTraceAttempt(){
 function setupTraceChar(speakIt){
   const ch = current.word[selected.length];
   traceBusy=false; drawing=false;
-  traceAttempts = 0; committedStrokes = 0; totalTraceLen = 0;
+  traceAttempts = 0; committedStrokes = 0; totalTraceLen = 0; traceDoneUnlocked = false;
   clearTraceHelp();
   updateTraceDoneUi(false);
   // visible faint guide
@@ -1864,8 +1873,9 @@ function checkTrace(){
   const touchedGuide = coverage >= 0.34 && precision >= 0.34;
   const notTooMuch = ink <= guideArea * 1.95;
   const ready = enoughStrokes && enoughLength && touchedGuide && notTooMuch;
-  updateTraceDoneUi(ready);
-  if(ready){
+  if(ready) traceDoneUnlocked = true;
+  updateTraceDoneUi(traceDoneUnlocked);
+  if(traceDoneUnlocked){
     $("message").textContent = "できたら おしてね";
   } else if(!enoughStrokes){
     $("message").textContent = "つぎの せん かこう";
@@ -2318,6 +2328,7 @@ function chooseHomeMode(key){
   store.cardLevel = opt.cardLevel || 0;
   saveStore();
   applyModeUi();
+  blip("tap");
 }
 document.querySelectorAll("#home-modes .home-mode").forEach(b=>{
   b.addEventListener("click",()=>chooseHomeMode(b.dataset.homeMode));
