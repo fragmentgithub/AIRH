@@ -516,6 +516,8 @@ body.lefty .pad-wrap{margin-left:max(0px,calc((100% - min(76vw,300px)) * .18));m
 .mode-seg--wrap .mode-opt{flex:1 1 92px;white-space:nowrap;}
 #limit-seg{width:100%;margin-left:0;justify-content:center;flex-wrap:wrap;border-radius:20px;}
 #limit-seg .mode-opt{flex:1 1 64px;white-space:nowrap;}
+.timer-reset{display:flex;align-items:center;gap:10px;}
+.timer-reset .ghost-btn{min-height:36px;padding:6px 12px;font-size:13px;background:var(--paper-2);border-radius:var(--r-pill);}
 .sheet__row--stack{flex-direction:column;align-items:flex-start;gap:8px;}
 .custom-panel{width:100%;display:grid;gap:8px;}
 .custom-panel input{
@@ -780,8 +782,20 @@ body.lefty .pad-wrap{margin-left:max(0px,calc((100% - min(76vw,300px)) * .18));m
         <button class="mode-opt" type="button" data-mode="trace">✏️ 手書き</button>
         <button class="mode-opt" type="button" data-mode="clap">👏 拍手</button>
         <button class="mode-opt" type="button" data-mode="mirror">↔ 向き</button>
-        <button class="mode-opt" type="button" data-mode="teach">🐥 教える</button>
+        <button class="mode-opt" type="button" data-mode="teach">💬 教える</button>
         <button class="mode-opt" type="button" data-mode="ear">👂 聞く</button>
+      </div>
+    </div>
+    <div class="sheet__row sheet__row--stack">
+      <span class="k">トップに表示</span>
+      <div class="mode-seg mode-seg--wrap" id="home-toggle-seg" role="group" aria-label="トップに表示する遊び方">
+        <button class="mode-opt" type="button" data-home-toggle="cards">🃏 札</button>
+        <button class="mode-opt" type="button" data-home-toggle="cards3">🔤 3文字札</button>
+        <button class="mode-opt" type="button" data-home-toggle="trace">✏️ 手書き</button>
+        <button class="mode-opt" type="button" data-home-toggle="clap">👏 拍手</button>
+        <button class="mode-opt" type="button" data-home-toggle="mirror">↔ 向き</button>
+        <button class="mode-opt" type="button" data-home-toggle="teach">💬 教える</button>
+        <button class="mode-opt" type="button" data-home-toggle="ear">👂 聞く</button>
       </div>
     </div>
     <div class="sheet__row sheet__row--stack">
@@ -803,7 +817,10 @@ body.lefty .pad-wrap{margin-left:max(0px,calc((100% - min(76vw,300px)) * .18));m
     </div>
     <div class="sheet__row">
       <span class="k">今日遊んだ時間</span>
-      <span class="v" id="stat-playtime">0分</span>
+      <span class="timer-reset">
+        <span class="v" id="stat-playtime">0分</span>
+        <button class="ghost-btn" id="timer-reset-btn" type="button">リセット</button>
+      </span>
     </div>
     <div class="sheet__row">
       <span class="k">遊んだ問題</span>
@@ -908,50 +925,13 @@ const MOUTH = {
   a:{shape:"😮", sound:"あ"}, i:{shape:"😁", sound:"い"}, u:{shape:"🫧", sound:"う"},
   e:{shape:"🙂", sound:"え"}, o:{shape:"⭕", sound:"お"}
 };
-const TRACE_PATTERNS = {
-  loop:[[[152,54],[96,78],[82,132],[111,188],[162,214],[213,181],[205,110],[150,88]]],
-  loopTail:[[[151,52],[96,83],[87,142],[118,192],[172,211],[219,172],[200,110],[142,96],[107,146],[154,240]]],
-  twoLine:[[[100,66],[106,210]],[[206,76],[190,224]]],
-  u:[[[133,66],[180,74]],[[111,121],[162,105],[202,132],[195,177],[155,214],[104,226]]],
-  to:[[[151,63],[147,126]],[[194,110],[139,138],[102,179],[124,218],[194,222]]],
-  hook:[[[154,54],[148,154],[168,218],[208,232]]],
-  curve:[[[82,86],[118,62],[182,70],[220,119],[187,182],[107,224]]],
-  sweep:[[[72,112],[126,78],[200,90],[218,126],[184,172],[116,218]]],
-  slant:[[[208,62],[94,178],[72,214]]],
-  chevron:[[[72,150],[132,95],[226,174]]],
-  zig:[[[76,72],[213,72],[118,142],[217,208],[86,230]]],
-  topBottom:[[[88,90],[211,88]],[[94,205],[214,206]]],
-  cross:[[[82,88],[218,88]],[[151,54],[145,232]],[[103,164],[206,162]]],
-  crossHook:[[[94,98],[215,90]],[[160,54],[132,150],[158,225],[206,236]]],
-  three:[[[82,78],[214,78]],[[96,132],[205,132]],[[142,55],[156,205],[113,234]]],
-  softS:[[[206,67],[124,94],[95,144],[145,168],[205,154],[184,215],[99,234]]],
-  nWave:[[[70,178],[108,116],[152,182],[199,116],[230,174]]],
-  yo:[[[158,60],[156,162],[184,214],[104,210]],[[112,102],[205,99]]],
-  ra:[[[164,68],[120,93]],[[134,115],[116,164],[160,139],[211,151],[207,197],[164,229],[111,222]]],
-  ri:[[[118,62],[112,148]],[[194,58],[192,132],[169,202],[126,235]]],
-  mu:[[[100,75],[203,78]],[[151,54],[151,164],[190,219],[114,228]],[[82,151],[223,142]]],
-  mo:[[[156,58],[142,100],[139,150],[141,197],[166,231],[212,209]],[[104,118],[205,115]],[[106,164],[201,160]]],
-  fu:[[[154,72],[133,112]],[[91,155],[72,213]],[[206,150],[230,210]]],
-  wa:[[[106,64],[109,226]],[[106,139],[168,92],[221,130],[190,203]]]
-};
-const TRACE_PATH_MAP = {
-  あ:"loopTail",い:"twoLine",う:"u",え:"zig",お:"loopTail",
-  か:"crossHook",き:"three",く:"slant",け:"cross",こ:"topBottom",
-  さ:"three",し:"curve",す:"loop",せ:"cross",そ:"softS",
-  た:"cross",ち:"sweep",つ:"sweep",て:"sweep",と:"to",
-  な:"crossHook",に:"twoLine",ぬ:"loopTail",ね:"wa",の:"loop",
-  は:"twoLine",ひ:"curve",ふ:"fu",へ:"chevron",ほ:"cross",
-  ま:"three",み:"loopTail",む:"mu",め:"loopTail",も:"mo",
-  や:"cross",ゆ:"loopTail",よ:"yo",
-  ら:"ra",り:"ri",る:"loopTail",れ:"wa",ろ:"curve",
-  わ:"wa",を:"loopTail",ん:"nWave"
-};
 const MSG_WRONG = ["もういっかい","こっちかな？","よくみてみよう"];
 const MSG_RIGHT = ["できたね！","やったね！","すごい！"];
 
 /* ---------- persistent state -------------------------------- */
 const BASE_STORE_KEY = "hiragana-asobi-v1";
 const PROFILE_KEY = BASE_STORE_KEY+"-profiles";
+const HOME_MODE_KEYS = ["cards","cards3","trace","clap","mirror","teach","ear"];
 function loadProfiles(){
   try{
     const p = JSON.parse(localStorage.getItem(PROFILE_KEY));
@@ -970,10 +950,16 @@ function defaultStore(){
   return {
     date:todayStr(), todayStamps:0, soundOn:true, played:0, correct:0,
     playedMs:0, limitMin:15, timerDefaultV2:true, mode:"cards", cardLevel:0, calm:false, bigTargets:false, lefty:false,
+    homeModes:HOME_MODE_KEYS.slice(),
     friends:[], customWords:[], history:[], misses:{}, lastFriend:""
   };
 }
 function todayStr(){ const d=new Date(); return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate(); }
+function normalizeHomeModes(value){
+  const set = new Set(Array.isArray(value) ? value : HOME_MODE_KEYS);
+  const modes = HOME_MODE_KEYS.filter(k=>set.has(k));
+  return modes.length ? modes : ["cards"];
+}
 function loadStore(){
   let s={};
   try{ s = JSON.parse(localStorage.getItem(storeKey())) || {}; }catch(e){ s={}; }
@@ -995,6 +981,7 @@ function loadStore(){
   if(!["cards","trace","clap","mirror","teach","ear"].includes(s.mode)) s.mode = "cards";
   s.cardLevel = Number(s.cardLevel) === 3 ? 3 : 0;
   if(s.mode !== "cards") s.cardLevel = 0;
+  s.homeModes = normalizeHomeModes(s.homeModes);
   if(!Array.isArray(s.friends)) s.friends = [];
   if(!Array.isArray(s.customWords)) s.customWords = [];
   else{
@@ -1103,8 +1090,7 @@ const TRACE_RELAX_ATTEMPTS = 3;
 const TRACE_AUTO_ATTEMPTS = 5;
 const TRACE_MIN_STROKE_PX = 26;  // PAD(300) units; shorter drawn length = stray tap, ignored
 function strokesNeededFor(ch){
-  const s = traceStrokes(ch);    // existing trace data (drives the demo); .loop fallback => 1
-  return (s && s.length) || 1;
+  return 1;
 }
 let padCtx = null, padGuideCtx = null;
 let guidePts = [];       // sampled glyph pixels of the current char
@@ -1115,6 +1101,7 @@ let traceAttempts = 0, traceTimers = [];
 let curStrokeLen = 0, committedStrokes = 0;
 let totalTraceLen = 0;
 let traceDoneUnlocked = false;
+let curStrokePts = [];
 let lastXY = [0,0];
 
 /* ---------- elements ---------------------------------------- */
@@ -1584,19 +1571,37 @@ function loadQuestion(){
 function traceFont(){
   return '700 200px "UD Digi Kyokasho NK-R","UD Digi Kyokasho N-R","UD デジタル 教科書体 NK-R","UD デジタル 教科書体 N-R","Yu Kyokasho","YuKyokasho","游教科書体","Hiragino Maru Gothic ProN","M PLUS Rounded 1c",system-ui,sans-serif';
 }
-function traceStrokes(ch){
-  return TRACE_PATTERNS[TRACE_PATH_MAP[ch]] || TRACE_PATTERNS.loop;
-}
 function setTraceGlyphStyle(ctx, color){
   ctx.fillStyle=color;
   ctx.textAlign="center";
   ctx.textBaseline="middle";
   ctx.font=traceFont();
 }
+function drawWorksheetGrid(ctx){
+  ctx.save();
+  ctx.strokeStyle="rgba(255,194,75,.28)";
+  ctx.lineWidth=2;
+  ctx.setLineDash([8,8]);
+  ctx.strokeRect(24,24,PAD-48,PAD-48);
+  ctx.beginPath();
+  ctx.moveTo(PAD/2,26); ctx.lineTo(PAD/2,PAD-26);
+  ctx.moveTo(26,PAD/2); ctx.lineTo(PAD-26,PAD/2);
+  ctx.stroke();
+  ctx.restore();
+}
 function drawTraceGuide(ch, color){
   padGuideCtx.clearRect(0,0,PAD,PAD);
-  setTraceGlyphStyle(padGuideCtx, color || "#E8DCC6");
+  drawWorksheetGrid(padGuideCtx);
+  padGuideCtx.save();
+  padGuideCtx.globalAlpha=.20;
+  setTraceGlyphStyle(padGuideCtx, "#4A3B2E");
   padGuideCtx.fillText(ch, PAD/2, PAD/2+6);
+  if(color && color !== "#E8DCC6"){
+    padGuideCtx.globalAlpha=.28;
+    setTraceGlyphStyle(padGuideCtx, color);
+    padGuideCtx.fillText(ch, PAD/2, PAD/2+6);
+  }
+  padGuideCtx.restore();
 }
 function segmentLen(a,b){
   const dx=b[0]-a[0], dy=b[1]-a[1];
@@ -1607,53 +1612,8 @@ function strokeLen(stroke){
   for(let i=1;i<stroke.length;i++) len += segmentLen(stroke[i-1], stroke[i]);
   return len;
 }
-function pointOnTrace(strokes, t){
-  const lengths = strokes.map(strokeLen);
-  const total = Math.max(1, lengths.reduce((a,b)=>a+b, 0));
-  let remain = total * Math.max(0, Math.min(1, t));
-  for(let si=0; si<strokes.length; si++){
-    const stroke = strokes[si];
-    for(let i=1;i<stroke.length;i++){
-      const a=stroke[i-1], b=stroke[i], len=segmentLen(a,b);
-      if(remain <= len){
-        const k = len ? remain/len : 0;
-        return [a[0]+(b[0]-a[0])*k, a[1]+(b[1]-a[1])*k];
-      }
-      remain -= len;
-    }
-  }
-  const lastStroke = strokes[strokes.length-1];
-  return lastStroke[lastStroke.length-1];
-}
-function drawTraceProgress(ctx, strokes, t){
-  const lengths = strokes.map(strokeLen);
-  const total = Math.max(1, lengths.reduce((a,b)=>a+b, 0));
-  let remain = total * Math.max(0, Math.min(1, t));
-  ctx.save();
-  ctx.strokeStyle="rgba(255,122,89,.58)";
-  ctx.lineWidth=22;
-  ctx.lineCap="round";
-  ctx.lineJoin="round";
-  for(let si=0; si<strokes.length && remain>0; si++){
-    const stroke = strokes[si];
-    if(!stroke.length) continue;
-    ctx.beginPath();
-    ctx.moveTo(stroke[0][0], stroke[0][1]);
-    for(let i=1;i<stroke.length;i++){
-      const a=stroke[i-1], b=stroke[i], len=segmentLen(a,b);
-      if(remain >= len){
-        ctx.lineTo(b[0], b[1]);
-        remain -= len;
-      }else{
-        const k = len ? remain/len : 0;
-        ctx.lineTo(a[0]+(b[0]-a[0])*k, a[1]+(b[1]-a[1])*k);
-        remain = 0;
-        break;
-      }
-    }
-    ctx.stroke();
-  }
-  ctx.restore();
+function clamp(n, min, max){
+  return Math.max(min, Math.min(max, n));
 }
 function stopTraceDemo(){
   if(traceDemoTimer){ clearTimeout(traceDemoTimer); traceDemoTimer=null; }
@@ -1738,7 +1698,7 @@ function noteTraceAttempt(){
 function setupTraceChar(speakIt){
   const ch = current.word[selected.length];
   traceBusy=false; drawing=false;
-  traceAttempts = 0; committedStrokes = 0; totalTraceLen = 0; traceDoneUnlocked = false;
+  traceAttempts = 0; committedStrokes = 0; totalTraceLen = 0; traceDoneUnlocked = false; curStrokePts = [];
   clearTraceHelp();
   updateTraceDoneUi(false);
   // visible faint guide
@@ -1778,36 +1738,22 @@ function playTraceDemo(silent){
   if(!current) return;
   stopTraceDemo();
   const ch=current.word[selected.length] || current.word[0];
-  const strokes=traceStrokes(ch);
-  const duration=Math.max(1100, 650 + strokes.reduce((sum,s)=>sum+strokeLen(s), 0)*2.1);
   const dot=$("ghost-dot");
-  dot.classList.add("is-on");
-  if(!silent) speak(ch+"、おてほん", 0.85);
-  const start=performance.now();
-  const step=(now)=>{
-    const t=Math.min(1, (now-start)/duration);
-    const p=pointOnTrace(strokes, t);
-    const r=$("pad").getBoundingClientRect();
-    const scale=r.width/PAD;
-    const fadeIn=Math.min(1, t/.08);
-    const fadeOut=t>.92 ? Math.max(0, (1-t)/.08) : 1;
-    drawTraceGuide(ch, "#E8DCC6");
-    drawTraceProgress(padGuideCtx, strokes, t);
-    dot.style.opacity=String(Math.min(fadeIn, fadeOut));
-    dot.style.transform="translate("+(p[0]*scale-11).toFixed(1)+"px,"+(p[1]*scale-11).toFixed(1)+"px) scale("+(0.82+Math.min(1,t*6)*0.18).toFixed(2)+")";
-    if(t<1) traceDemoFrame=requestAnimationFrame(step);
-    else{
-      traceDemoFrame=null;
-      dot.classList.remove("is-on");
-      dot.style.opacity="";
-      drawTraceGuide(ch, "#FFD79A");
-    }
-  };
-  traceDemoFrame=requestAnimationFrame(step);
+  dot.classList.remove("is-on");
+  dot.style.opacity="";
+  drawTraceGuide(ch, "#FFD79A");
+  if(!silent) speak(ch+"、なぞってね", 0.85);
+  traceDemoTimer=setTimeout(()=>{
+    traceDemoTimer=null;
+    if(stillThisTraceChar(ch)) drawTraceGuide(ch, "#E8DCC6");
+  }, 900);
 }
 function padPos(e){
   const r=$("pad").getBoundingClientRect();
-  return [ (e.clientX-r.left)*(PAD/r.width), (e.clientY-r.top)*(PAD/r.height) ];
+  return [
+    clamp((e.clientX-r.left)*(PAD/r.width), 0, PAD),
+    clamp((e.clientY-r.top)*(PAD/r.height), 0, PAD)
+  ];
 }
 function padDown(e){
   if(traceBusy) return;
@@ -1815,76 +1761,57 @@ function padDown(e){
   drawing=true; curStrokeLen=0;
   try{ $("pad").setPointerCapture(e.pointerId); }catch(_){}
   const p=padPos(e); lastXY=p;
+  curStrokePts=[p];
   padCtx.beginPath(); padCtx.moveTo(p[0],p[1]); padCtx.lineTo(p[0]+0.1,p[1]); padCtx.stroke(); // a dot
   e.preventDefault();
 }
 function padMove(e){
   if(!drawing) return;
   const p=padPos(e);
-  curStrokeLen += Math.hypot(p[0]-lastXY[0], p[1]-lastXY[1]);
+  const step = Math.hypot(p[0]-lastXY[0], p[1]-lastXY[1]);
+  curStrokeLen += step;
+  if(step>=4) curStrokePts.push(p);
   padCtx.beginPath(); padCtx.moveTo(lastXY[0],lastXY[1]); padCtx.lineTo(p[0],p[1]); padCtx.stroke();
   lastXY=p;
   e.preventDefault();
 }
-function padUp(){
+function commitTraceStroke(){
+  if(traceDoneUnlocked){
+    updateTraceDoneUi(true);
+    $("message").textContent = "できたら おしてね";
+    return;
+  }
+  totalTraceLen += curStrokeLen;
+  blip("tap");
+  checkTrace();
+}
+function padUp(e){
   if(!drawing) return;
   drawing=false;
+  try{ if(e && e.pointerId!=null) $("pad").releasePointerCapture(e.pointerId); }catch(_){}
   if(curStrokeLen < TRACE_MIN_STROKE_PX){      // stray/brief tap: erase its dot, don't count a stroke
     const r=BRUSH/2+2;
     padCtx.clearRect(lastXY[0]-r, lastXY[1]-r, r*2, r*2);
+    curStrokePts=[];
     return;
   }
-  committedStrokes++;
-  totalTraceLen += curStrokeLen;
-  checkTrace();
+  curStrokePts.push(lastXY);
+  commitTraceStroke();
+  curStrokeLen=0; curStrokePts=[];
 }
-function padCancel(){            // iOS palm / multi-touch / scroll: end stroke without committing or scoring
-  drawing=false; curStrokeLen=0;
+function padCancel(e){            // iOS palm / multi-touch / scroll: end stroke without committing or scoring
+  try{ if(e && e.pointerId!=null) $("pad").releasePointerCapture(e.pointerId); }catch(_){}
+  drawing=false; curStrokeLen=0; curStrokePts=[];
 }
 function checkTrace(){
   if(traceBusy || !guideArea) return;
-  const ch=current.word[selected.length];
-  const d=padCtx.getImageData(0,0,PAD,PAD).data;
-  const GW=PAD/4;
-  const inkMask = new Uint8Array(GW*GW);
-  let covered=0, ink=0, inside=0;
-  for(let y=0;y<PAD;y+=4){ for(let x=0;x<PAD;x+=4){
-    if(d[(y*PAD+x)*4+3]>40){
-      ink++;
-      const cx=x/4|0, cy=y/4|0;
-      if(guideMask && guideMask[cy*GW+cx]) inside++;
-      for(let dy=-2;dy<=2;dy++){
-        for(let dx=-2;dx<=2;dx++){
-          const nx=cx+dx, ny=cy+dy;
-          if(nx>=0 && nx<GW && ny>=0 && ny<GW) inkMask[ny*GW+nx]=1;
-        }
-      }
-    }
-  } }
-  for(let i=0;i<guidePts.length;i++){
-    const x=guidePts[i][0]/4|0, y=guidePts[i][1]/4|0;
-    if(inkMask[y*GW+x]) covered++;
-  }
-  const coverage=covered/guideArea;
-  const precision=ink?inside/ink:0;
-  const need = strokesNeededFor(ch);
-  const enoughStrokes = committedStrokes >= need;
-  const enoughLength = totalTraceLen >= Math.max(80, need * 55);
-  const touchedGuide = coverage >= 0.34 && precision >= 0.34;
-  const notTooMuch = ink <= guideArea * 1.95;
-  const ready = enoughStrokes && enoughLength && touchedGuide && notTooMuch;
+  const ready = totalTraceLen >= 70;
   if(ready) traceDoneUnlocked = true;
   updateTraceDoneUi(traceDoneUnlocked);
   if(traceDoneUnlocked){
     $("message").textContent = "できたら おしてね";
-  } else if(!enoughStrokes){
-    $("message").textContent = "つぎの せん かこう";
-  } else if(!touchedGuide){
-    $("message").textContent = "きいろの じを なぞろう";
-  } else if(!notTooMuch){
-    $("message").textContent = "ゆっくり なぞろう";
   } else {
-    $("message").textContent = "もうすこし なぞってね";
+    $("message").textContent = "うすい じを なぞろう";
   }
 }
 function acceptTraceChar(){
@@ -1892,6 +1819,9 @@ function acceptTraceChar(){
   traceBusy=true;
   committedStrokes=0;
   totalTraceLen=0;
+  curStrokeLen=0;
+  curStrokePts=[];
+  traceDoneUnlocked=false;
   updateTraceDoneUi(false);
   const ch=current.word[selected.length];
   const willComplete = selected.length + 1 === current.word.length;
@@ -2126,6 +2056,16 @@ function applyLimitUi(){
     b.setAttribute("aria-pressed", String(on));
   });
 }
+function resetPlayTimer(){
+  checkpointPlay();
+  store.playedMs = 0;
+  if(playScreenActive()) tickStart = Date.now();
+  saveStore();
+  $("stat-playtime").textContent = formatPlaytime();
+  const btn=$("timer-reset-btn");
+  btn.textContent = "リセット済み";
+  setTimeout(()=>{ btn.textContent = "リセット"; }, 900);
+}
 function applyPrefUi(){
   document.querySelectorAll("#pref-seg .mode-opt").forEach(b=>{
     const on = !!store[b.dataset.pref];
@@ -2304,10 +2244,35 @@ function currentHomeModeKey(){
   if(store.mode==="cards" && store.cardLevel===3) return "cards3";
   return Object.keys(HOME_MODE_OPTIONS).find(k=>k!=="cards3" && HOME_MODE_OPTIONS[k].mode===store.mode) || "cards";
 }
+function enabledHomeModeKeys(){
+  store.homeModes = normalizeHomeModes(store.homeModes);
+  return store.homeModes;
+}
+function ensureCurrentHomeModeVisible(){
+  const enabled = enabledHomeModeKeys();
+  if(enabled.includes(currentHomeModeKey())) return;
+  const opt = HOME_MODE_OPTIONS[enabled[0]] || HOME_MODE_OPTIONS.cards;
+  store.mode = opt.mode;
+  store.cardLevel = opt.cardLevel || 0;
+  saveStore();
+}
 function applyHomeModeUi(){
+  ensureCurrentHomeModeVisible();
   const key = currentHomeModeKey();
+  const enabled = enabledHomeModeKeys();
   document.querySelectorAll("#home-modes .home-mode").forEach(b=>{
+    const visible = enabled.includes(b.dataset.homeMode);
     const on = b.dataset.homeMode===key;
+    b.hidden = !visible;
+    b.classList.toggle("is-on", on);
+    b.setAttribute("aria-pressed", String(on));
+  });
+  applyHomeToggleUi();
+}
+function applyHomeToggleUi(){
+  const enabled = enabledHomeModeKeys();
+  document.querySelectorAll("#home-toggle-seg .mode-opt").forEach(b=>{
+    const on = enabled.includes(b.dataset.homeToggle);
     b.classList.toggle("is-on", on);
     b.setAttribute("aria-pressed", String(on));
   });
@@ -2324,20 +2289,47 @@ function applyModeUi(){
 function chooseHomeMode(key){
   const opt = HOME_MODE_OPTIONS[key];
   if(!opt) return;
+  store.homeModes = normalizeHomeModes(store.homeModes);
+  if(!store.homeModes.includes(key)){
+    store.homeModes = HOME_MODE_KEYS.filter(k=>k===key || store.homeModes.includes(k));
+  }
   store.mode = opt.mode;
   store.cardLevel = opt.cardLevel || 0;
   saveStore();
   applyModeUi();
   blip("tap");
 }
+function toggleHomeMode(key){
+  if(!HOME_MODE_OPTIONS[key]) return;
+  let enabled = normalizeHomeModes(store.homeModes);
+  if(enabled.includes(key)){
+    if(enabled.length===1) return;
+    enabled = enabled.filter(k=>k!==key);
+  }else{
+    const set = new Set(enabled.concat(key));
+    enabled = HOME_MODE_KEYS.filter(k=>set.has(k));
+  }
+  store.homeModes = enabled;
+  ensureCurrentHomeModeVisible();
+  saveStore();
+  applyModeUi();
+}
 document.querySelectorAll("#home-modes .home-mode").forEach(b=>{
   b.addEventListener("click",()=>chooseHomeMode(b.dataset.homeMode));
+});
+document.querySelectorAll("#home-toggle-seg .mode-opt").forEach(b=>{
+  b.addEventListener("click",()=>toggleHomeMode(b.dataset.homeToggle));
 });
 document.querySelectorAll("#mode-seg .mode-opt").forEach(b=>{
   b.addEventListener("click",()=>{
     store.mode=b.dataset.mode;
     store.cardLevel=Number(b.dataset.cardLevel || 0);
     if(store.mode!=="cards") store.cardLevel=0;
+    const key = currentHomeModeKey();
+    store.homeModes = normalizeHomeModes(store.homeModes);
+    if(!store.homeModes.includes(key)){
+      store.homeModes = HOME_MODE_KEYS.filter(k=>k===key || store.homeModes.includes(k));
+    }
     saveStore();
     applyModeUi();
   });
@@ -2360,6 +2352,7 @@ document.querySelectorAll("#pref-seg .mode-opt").forEach(b=>{
 });
 $("custom-add-btn").addEventListener("click", addCustomWord);
 $("profile-add-btn").addEventListener("click", addProfile);
+$("timer-reset-btn").addEventListener("click", resetPlayTimer);
 document.addEventListener("visibilitychange", ()=>{
   if(document.hidden) stopPlayClock();
   else if(playScreenActive()) startPlayClock();
@@ -2377,9 +2370,12 @@ function initPad(){
 }
 $("clear-btn").addEventListener("click",()=>{
   if(traceBusy) return;
+  stopTraceDemo();
+  const wasDoneUnlocked = traceDoneUnlocked;
   padCtx.clearRect(0,0,PAD,PAD);
-  committedStrokes=0;
-  totalTraceLen=0;
+  drawing=false; curStrokeLen=0; curStrokePts=[];
+  committedStrokes=0; totalTraceLen=0; traceDoneUnlocked=false;
+  if(wasDoneUnlocked) traceAttempts=0;
   updateTraceDoneUi(false);
   noteTraceAttempt();
 });
