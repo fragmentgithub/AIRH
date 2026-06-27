@@ -2,7 +2,8 @@
 
 対象ファイル: **`index.html` / `styles.css` / `src/*.js` / `sw.js` / `assets/`（single-file 解除後）**
 作成: 2026-06-27 / レビュー＋検証: Claude Code（`main` 全文精読 → 指摘 → Codex 修正 → ローカル実機スモークで照合）
-基準: **`main` 先端 `003f11a` に対する作業ツリー変更（index.html +120/-35、未コミット）**
+最終追記: 2026-06-27 / `main` = `origin/main` 先端 **`d6482fd`**（`Modularize into no-build ESM; service worker, recorded audio, tests`）
+基準: **`003f11a` 後の修正群 → `d6482fd` で main 反映済み**
 姉妹: [`handoff-fixes.md`](handoff-fixes.md) / [`-2`](handoff-fixes-2.md) / [`-3`](handoff-fixes-3.md) / [`-4`](handoff-fixes-4.md) / [`-5`](handoff-fixes-5.md) / [`handoff-ideas.md`](handoff-ideas.md)
 
 > **本書は「レビュー → 修正 → 検証」が一巡した記録**。`003f11a` 時点を全体レビューし、新規確定バグ2件・掃除・要相談（handoff-⑤ §D）を洗い出した。Codex が **§A・§B に加えて §C（要相談だったモード設計）も実装**。Claude Code が `python -m http.server 8000` でランタイム検証し、**全工程コンソールエラー0件・「絶対に詰まらない」維持**を確認した。
@@ -66,22 +67,26 @@
 ---
 
 ## 4. リポジトリ状態
-- 変更は **作業ツリーに未コミット**（`index.html` +120/-35）。新規 `docs/handoff-fixes-6.md`（本書）も未追跡。
-- ブランチは `main` のみ（旧 `codex/*` は削除済み、PR #1–#3 マージ/クローズ済み）。
-- 反映するなら `main` から作業ブランチを切って commit → PR → main（push で GitHub Pages 反映）。
+- 実装本体は **`d6482fd`** で `main` / `origin/main` に反映済み。
+- 追加された実体: `styles.css`、`src/main.js`、`src/timers.js`、`src/modes.js`、`src/audio.js`、`sw.js`、`assets/manifest.webmanifest`、`assets/audio/*.wav`、`package.json`、`test/*.js`、`scripts/generate-audio.mjs`。
+- 本文書の追加整合修正だけを行う場合は、`docs/handoff-fixes-6.md` のみ別コミットでよい。
 
 ## 5. 次の周回の候補（任意）
-- §3「報酬限定の副作用」を踏まえた保護者画面の指標見直し（正解/トレイの母数）。
-- clap も `loadQuestion` で `speak(current.word)` のまま＝拍数のヒントに語が聞こえる（課題上は許容だが、純粋化するなら mirror 同様にゲート可）。
-- handoff-⑤ §D の残（あれば）と spec（[`hiragana-word-game-spec.md`](hiragana-word-game-spec.md)）の整合再点検。
+- **保護者指標の見直し**: §3「報酬限定の副作用」を踏まえ、補助モード用カウンタを別表示にするか、`played` も報酬モード限定にするかを決める。
+- **clap の発話純粋化**: clap は現在も開始時に語を発話する。拍数課題として純粋化するなら mirror 同様に答え漏れゲートを入れる。
+- **E2E 常設化**: 単体テストは入ったが、Playwright の cards5問/おみみ/mirror/trace/保護者シート/タイマー遷移回帰はまだ常設化していない。
+- **さらなる分割**: `src/main.js` には data/store/trace/ui が残る。急がないが、次に触るなら責務ごとの小分けで進める。
+- **spec 整合**: [`hiragana-word-game-spec.md`](hiragana-word-game-spec.md) は MVP 初期仕様のまま。single-file 解除、SW、録音音声、補助モードの報酬仕様を反映する余地あり。
 
 ---
 
-# §6. リファクタリング方針（着手判断）
+# §6. リファクタリング方針（single-file 制約時の旧方針・履歴）
+
+> **2026-06-27 追記**: 本節は single-file 制約を維持する前提での旧判断。現在は §7/§8 の方針に転換し、R1/R2 は実装済み。以後の作業判断は §0 と §8 を優先する。
 
 > **結論: 大改修はしない。的を絞る。** single-file 制約（モジュール分割不可）で整理の上限が低く、自動テストが無い4歳児向けアプリでは“静かな回帰”のリスクが利得を上回る。**やるなら小刻み＋毎回 `python -m http.server 8000` スモーク**。一括書き換え禁止。
 
-## やらない（明示）
+## やらない（当時の明示）
 - **ファイル分割**: single-file 制約により選択肢外。
 - **グローバル状態の全面書き換え**: `queue/qIndex/current/selected/...` は規模相応で可読。動くコードの churn は避ける。
 - **CSS 再編**: トークン化＋section コメント済みで困っていない。
@@ -135,13 +140,14 @@
 - **受け入れ条件**: 全7モードの表示/発話/報酬/ゲートが現行と**ピクセル/挙動同値**で、モード追加が1エントリで済む形になる。
 
 ## 進め方（共通）
-- テスト無し前提で **1論点=1コミット**、各コミットで該当モードをスモーク。R1→（必要なら）R2 の順。`main` から `git switch -c refactor-timers main`。
+- 当時の前提: テスト無し前提で **1論点=1コミット**、各コミットで該当モードをスモーク。R1→（必要なら）R2 の順。
+- 現在の実態: `d6482fd` で R1/R2 と Phase 4 をまとめて反映済み。次回以降はこの反省を踏まえ、差分を小さく分ける。
 
 ---
 
 # §7. リファクタリング方針（**single-file 制約を解除する場合**）
 
-> **位置づけ**: §6 は「制約を維持したまま的を絞る」案。本 §7 は **制約を外す方針に転換した場合**の段階プラン。`refactor-modularize` で着手したため、§0 の「1ファイルのみ」は解除済みに更新した。デプロイは引き続き **GitHub Pages（main push）**で変わらない。
+> **位置づけ**: §6 は「制約を維持したまま的を絞る」案。本 §7 は **制約を外す方針に転換した場合**の段階プラン。現在は `d6482fd` で `main` / `origin/main` に反映済みで、§0 の「1ファイルのみ」は解除済みに更新した。デプロイは引き続き **GitHub Pages（main push）**で変わらない。
 
 ## 7-0. 先に決める2つの分岐（推奨を併記）
 1. **ビルド工程を入れるか** → **推奨: 入れない（no-build / 素の ES Modules）**。理由: 「Pages にそのまま置ける・依存の腐敗が起きない」という現行の最大の利点を維持できる。minify/bundle が要るほど重くなったら後から導入で十分。
@@ -163,8 +169,9 @@
 /sw.js             … Service Worker（7-4 で追加）
 /assets/
   icons/…          … apple-touch-icon 等の実 PNG
-  audio/…          … 録音音声（7-4 で追加・任意）
-  manifest.webmanifest … data-URI をやめ実ファイル化
+  icon.svg         … manifest 用 SVG アイコン（apple-touch-icon PNG は未追加）
+  audio/…          … 録音音声（追加済み）
+  manifest.webmanifest … data-URI をやめ実ファイル化（追加済み）
 ```
 
 ## 7-2. 段階プラン（各 Phase 後にスモーク）
@@ -180,6 +187,7 @@
 ## 7-3. 自動テスト導入（最大の恩恵）
 - モジュール化で**純ロジックの単体テストが可能**に＝「テスト無しゆえ小刻み」という現行の足かせが根本解消。
 - 候補: **Vitest**（純関数）＋ 既にある **Playwright**（E2E スモークの自動化）。
+- 実装済み: 外部依存を増やさず **Node 標準 `node --test`** を採用。`timers` と `modes` の契約を 7 テストで固定。
 - 最優先で固めたい純ロジック: `buildSet`（重複なし・難易度ランプ・custom 配置）／`validCustomWord`／`loadStore` の移行・型ガード・日付ロールオーバー／`earnsProgressReward`／`buildChoices`（look-alike 除外）。
 - E2E: §6 R1 の回帰（遅延中に🏠→鳴り残り/入力消失なし）・「絶対に詰まらない」（trace 24秒・各モード正答札存在）を Playwright で常設化。
 - 注: テスト導入は**開発時のみ**で、配布物（Pages に載るファイル）は no-build なら不変。
@@ -188,9 +196,11 @@
 - `sw.js` を追加し、**html/css/js/フォント/（あれば）音声をプリキャッシュ** → 一度開けば**完全オフライン**（現状は HTTP キャッシュ頼みの degrade）。
 - `manifest` を data-URI から `assets/manifest.webmanifest` へ。`apple-touch-icon` の実 PNG も置ける（iOS のホーム画面アイコンが安定）。
 - 更新戦略: cache-first＋version 付きキャッシュ名で、push のたびに `CACHE_VERSION` を上げて切替（stale 回避）。SW 登録失敗は握り潰してオンライン動作にフォールバック。
+- 実装済み: `sw.js` は http/https のみ登録。`CORE_ASSETS` と `assets/audio/manifest.json` 経由の WAV 群をプリキャッシュする。`CACHE_VERSION` 更新で切替。
 
 ## 7-5. 録音音声フォールバック（任意・中核弱点の解消）
 - Web Speech はオフライン/iOS で**無言失敗**しうる（handoff-ideas の既知問題）。`assets/audio/` にかな・語の録音を置き、`audio.js` で **「ja 音声が取れない時は録音を再生」**にフォールバック。単一ファイルでは同梱不可だった対策がここで可能になる。
+- 実装済み: Windows の `Microsoft Haruka Desktop` で 96 件の `.wav` を生成。`src/audio.js` が `assets/audio/manifest.json` を読み、`speak()` は ja 音声が取れない場合に録音へフォールバックする。
 
 ## 7-6. リスク／コストと不変点
 - **増えるもの**: ファイル数・初回リクエスト数（SW プリキャッシュで相殺）・（テスト/CI を入れるなら）開発依存。
@@ -199,9 +209,9 @@
 
 ---
 
-# §8. 実施＆検証記録（`refactor-modularize` / Claude Code）
+# §8. 実施＆検証記録（`d6482fd` / main反映済み）
 
-> Codex が §7 を実装（Phase 1〜4 を1ブランチで）。Claude Code が全モジュール精読＋`node --test`＋`python -m http.server` 実機スモークで照合した。**挙動不変・回帰なしを確認**。
+> §7 の Phase 1〜4 は `d6482fd`（`Modularize into no-build ESM; service worker, recorded audio, tests`）として `main` / `origin/main` に反映済み。Claude Code が全モジュール精読＋`node --test`＋`python -m http.server` 実機スモークで照合し、**挙動不変・回帰なし**を確認した。
 
 ## 検証結果（OK）
 - **単体テスト 7/7 パス**（`npm test` = `node --test`）: `timers`（after/cancelAfter/cancelAllPending）・`modes`（normalizeHomeModes/homeModeKeyFor/報酬判定/MODE_DEFS 契約）。
@@ -209,15 +219,15 @@
 - **R1 達成**: ゲームループの生 `setTimeout` を `after`/`cancelAfter` に統一、`clearGameTimers()`（=`cancelAllPending`＋個別 clear）を `loadQuestion/goHome/startSet/switchProfile/showRest` で呼ぶ。過去2回のバグクラス（追跡外タイマー）を構造的に封鎖。
 - **R2 達成**: `loadQuestion` が `modeDefFor()` 駆動（areas/slots/listen/redo/prompt/hint/renderer/speech）。報酬は `modeReceivesProgressReward()`。挙動は旧 per-mode 分岐と同値を確認。
 - **解除で実現**: SW は http 限定登録（scope 確認）／録音音声マニフェスト 96 件・`speak()` が「ja 音声無し→録音再生」フォールバック／manifest 実ファイル化。
-- **ランタイム・スモーク**: ホーム=ふだのみ・カード5問完走（花丸5・トレイ5）・SW 登録・音声マニフェスト 96 件取得、**全工程コンソール error/warning 0件**。おみみ/mirror/trace は前周回と同一ロジックのため挙動同値。
+- **ランタイム・スモーク**: `localhost:8000` で最新構成ロード（manifest=`./assets/manifest.webmanifest`、module=`./src/main.js`）・カード5問完走・おみみ・mirror・trace・保護者シート・fresh origin で人を増やす・SW/音声マニフェスト取得、**全工程コンソール error/warning 0件**。
 
 ## 申し送り（次の周回・任意）
-- **粒度の逸脱**: 本ブランチは §7 の「1論点=1コミット／抽出と機能変更を混ぜない」に反し、抽出＋R1＋R2＋Phase4（SW/音声/テスト）を1ブランチに同梱。検証済みで問題は無いが、**次回はPRを小さく**。
+- **粒度の逸脱**: `d6482fd` は §7 の「1論点=1コミット／抽出と機能変更を混ぜない」に反し、抽出＋R1＋R2＋Phase4（SW/音声/テスト）を1コミットに同梱。検証済みで問題は無いが、**次回はPRを小さく**。
 - **分割は部分的**: `src/main.js` がまだ約1,600行（§7-1 の `data.js`/`store.js`/`trace.js`/`ui.js` 分割は未了）。急がない follow-up。
 - **E2E 未導入**: 単体テストのみ。R1 の回帰（遅延中に🏠→鳴り残り/入力消失なし）・「絶対に詰まらない」を **Playwright で常設化**したい。
 - **微小ニット**: `src/main.js` の `"use strict";` が import 後にある（ESM は元々 strict＝無害）。除去可。
 
 ## 状態
-- ブランチ `refactor-modularize`（**未コミット**）。`main` 一本運用のため、検証済みの本ブランチは **main へマージ**して push（→ Pages 反映）。
+- 実装本体は **`d6482fd`** で `main` / `origin/main` に反映済み（Pages 反映対象）。
 - **§0 と単一ファイル制約メモリは本周回で「解除」へ更新済み**（README も多ファイル前提に更新済み）。
-- **やる順序**: Phase1（抽出）を1PRで完了・検証してから Phase2 以降へ。`git switch -c refactor-modularize main`。**抽出と機能変更を同じ PR に混ぜない**（差分レビュー不能になる）。
+- 本文書の追加修正を行った場合は、docs-only の小コミットでよい。機能追加は次回以降、1論点ずつ分ける。

@@ -526,7 +526,7 @@ function bindPreview(el, textFn){
       if(t && t.length===1) speakKana(t); else if(t) speak(t);
     });
   });
-  const cancel=()=>{ if(timer){ cancelAfter(timer); timer=null; } after(80, ()=>{ if(previewed) suppressClick=false; }); };
+  const cancel=()=>{ if(timer){ cancelAfter(timer); timer=null; } setTimeout(()=>{ if(previewed) suppressClick=false; }, 80); };
   el.addEventListener("pointerup", cancel);
   el.addEventListener("pointerleave", cancel);
   el.addEventListener("pointercancel", cancel);
@@ -544,7 +544,7 @@ function startDwell(el, letter){
   el.classList.add("is-dwell");
   const cancel=()=>{
     cancelAfter(timer); el.classList.remove("is-dwell");
-    after(100, ()=>{ if(done) suppressClick=false; });
+    setTimeout(()=>{ if(done) suppressClick=false; }, 100);
     el.removeEventListener("pointerup", cancel);
     el.removeEventListener("pointerleave", cancel);
     el.removeEventListener("pointercancel", cancel);
@@ -733,10 +733,6 @@ function teachPick(letter){
   }
 }
 function renderEar(){
-  $("hint-emoji").textContent="👂";
-  $("hint-emoji").setAttribute("aria-label","おみみ");
-  $("prompt-text").textContent="きいて えらぼう";
-  $("ear-btn").setAttribute("aria-label","ことばを きく");
   const box=$("ear-choices");
   box.innerHTML="";
   box.classList.remove("is-wrong");
@@ -764,6 +760,7 @@ function earPick(ok){
 
 function loadQuestion(){
   clearGameTimers();
+  suppressClick=false;
   current = queue[qIndex];
   selected = []; wrongCount=0; locked=false; drawing=false; traceBusy=false;
   store.played++; saveStore();
@@ -925,7 +922,10 @@ function setupTraceChar(speakIt){
     traceDemoTimer=null;
     playTraceDemo(true);
   });
-  if(speakIt) speak(ch+"、かいてね", 0.85);
+  if(speakIt){
+    speakKana(ch);
+    after(420, ()=>speak("かいてね", 0.85));
+  }
 }
 function playTraceDemo(silent){
   if(!current) return;
@@ -935,7 +935,10 @@ function playTraceDemo(silent){
   dot.classList.remove("is-on");
   dot.style.opacity="";
   drawTraceGuide(ch, "#FFD79A");
-  if(!silent) speak(ch+"、なぞってね", 0.85);
+  if(!silent){
+    speakKana(ch);
+    after(420, ()=>speak("なぞってね", 0.85));
+  }
   const pts = guidePts.length ? guidePts : [[PAD/2,70],[PAD/2,PAD/2],[PAD/2,PAD-70]];
   const count = Math.min(42, pts.length);
   const path = [];
@@ -1178,6 +1181,7 @@ function recordSetHistory(){
   saveStore();
 }
 function showRest(){
+  stopSpeaking();
   stopPlayClock();
   clearGameTimers();
   locked=false; drawing=false; traceBusy=false;
@@ -1248,7 +1252,10 @@ function renderHome(){
 }
 function startSet(){
   // a tap unlocks audio context / speech on mobile
+  stopSpeaking();
   clearGameTimers();
+  navLock=false;
+  suppressClick=false;
   primeSpeech();
   if(actx && actx.state==="suspended") actx.resume();
   if(timeUp()){ showRest(); return; }
@@ -1260,6 +1267,8 @@ function goHome(){
   stopSpeaking();
   stopPlayClock();
   clearGameTimers();
+  navLock=false;
+  suppressClick=false;
   locked=false; drawing=false; traceBusy=false;
   renderHome(); show("home");
 }
@@ -1459,7 +1468,7 @@ $("next-btn").addEventListener("click", ()=>{
   if(navLock) return;
   navLock = true;
   nextQuestion();
-  after(400, ()=>{ navLock = false; });
+  setTimeout(()=>{ navLock = false; }, 400);
 });
 $("again-btn").addEventListener("click", startSet);
 $("gohome-btn").addEventListener("click", goHome);

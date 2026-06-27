@@ -43,20 +43,29 @@ self.addEventListener("fetch", (event) => {
   event.respondWith((async () => {
     const cache = await caches.open(CACHE_VERSION);
     const cached = await cache.match(request);
-    if (cached) return cached;
+    const url = new URL(request.url);
+    const isCode = request.mode === "navigate" || /\.(?:html|css|js|json)$/i.test(url.pathname);
+    if (cached && !isCode) return cached;
 
-    try {
-      const response = await fetch(request);
+    const network = fetch(request).then((response) => {
       if (response && (response.ok || response.type === "opaque")) {
         cache.put(request, response.clone());
       }
       return response;
-    } catch (error) {
-      if (request.mode === "navigate") {
-        const fallback = await cache.match("./index.html");
-        if (fallback) return fallback;
-      }
-      throw error;
+    }).catch(() => null);
+
+    if (cached) {
+      event.waitUntil(network.then(() => undefined));
+      return cached;
     }
+
+    const response = await network;
+    if (response) return response;
+
+    if (request.mode === "navigate") {
+      const fallback = await cache.match("./index.html");
+      if (fallback) return fallback;
+    }
+    throw new Error("offline");
   })());
 });

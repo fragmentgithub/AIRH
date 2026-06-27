@@ -19,6 +19,18 @@ if (kanaPoolMatch) {
 const directSpeech = source.matchAll(/\bspeak\("([^"]+)"/g);
 for (const match of directSpeech) texts.add(match[1]);
 
+const modesSource = fs.readFileSync("src/modes.js", "utf8");
+const modeSpeech = modesSource.matchAll(/\bspeech:\s*"([^"]+)"/g);
+for (const match of modeSpeech) {
+  if (match[1] !== "word" && match[1] !== "slow-word") texts.add(match[1]);
+}
+
+const wrongMessages = source.match(/const MSG_WRONG = \[([^\]]+)\]/);
+if (wrongMessages) {
+  const literals = wrongMessages[1].matchAll(/"([^"]+)"/g);
+  for (const match of literals) texts.add(match[1]);
+}
+
 texts.delete("");
 texts.delete(" ");
 
