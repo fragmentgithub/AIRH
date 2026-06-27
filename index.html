@@ -150,6 +150,7 @@ body.lefty .pad-wrap{margin-left:max(0px,calc((100% - min(76vw,300px)) * .18));m
   min-height:44px;padding:8px 16px;
 }
 .ghost-btn:focus-visible{outline:3px solid var(--ink);outline-offset:2px;border-radius:8px;}
+.ghost-btn:disabled{opacity:.45;cursor:not-allowed;}
 
 /* ============================================================
    HOME
@@ -434,15 +435,9 @@ body.lefty .pad-wrap{margin-left:max(0px,calc((100% - min(76vw,300px)) * .18));m
   border:3px solid #fff;box-shadow:0 3px 8px rgba(74,59,46,.22);
   left:0;top:0;opacity:0;pointer-events:none;z-index:3;
   transform:translate(139px,54px) scale(.8);
+  transition:opacity .12s ease;
 }
 .ghost-dot.is-on{opacity:1;}
-@keyframes ghost-trace{
-  0%{opacity:0;transform:translate(-50%,0) scale(.7);}
-  15%{opacity:1;}
-  50%{transform:translate(-110px,88px) scale(1);}
-  88%{opacity:1;transform:translate(86px,172px) scale(1);}
-  100%{opacity:0;transform:translate(86px,172px) scale(.7);}
-}
 
 .clap-area,.mirror-area,.ear-area{align-items:center;gap:14px;}
 .mora-dots{display:flex;justify-content:center;gap:12px;min-height:46px;}
@@ -462,6 +457,12 @@ body.lefty .pad-wrap{margin-left:max(0px,calc((100% - min(76vw,300px)) * .18));m
 .mirror-choices.is-wrong{animation:wobble .5s ease;}
 .mirror-choice.is-flip span{display:inline-block;transform:scaleX(-1);}
 .mirror-choice.is-rotate span{display:inline-block;transform:rotate(180deg);}
+.ear-choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;width:100%;max-width:420px;margin:0 auto;}
+.ear-choice{
+  border:none;cursor:pointer;background:var(--card);box-shadow:var(--shadow-card);border-radius:var(--r-card);
+  min-height:104px;font-size:clamp(46px,14vw,74px);line-height:1;
+}
+.ear-choices.is-wrong{animation:wobble .5s ease;}
 
 .trace-actions{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;}
 .trace-done-btn{
@@ -726,7 +727,8 @@ body.lefty .pad-wrap{margin-left:max(0px,calc((100% - min(76vw,300px)) * .18));m
     </div>
 
     <div class="answer-area ear-area" id="ear-area" hidden>
-      <button class="ear-btn" id="ear-btn" aria-label="きいたら タップ">👂</button>
+      <button class="ear-btn" id="ear-btn" aria-label="ことばを きく">👂</button>
+      <div class="ear-choices" id="ear-choices" aria-label="きこえた え"></div>
       <button class="ghost-btn redo" id="ear-repeat-btn">🔊 もういちど</button>
     </div>
   </section>
@@ -833,7 +835,7 @@ body.lefty .pad-wrap{margin-left:max(0px,calc((100% - min(76vw,300px)) * .18));m
     <div class="sheet__row sheet__row--stack">
       <span class="k">ことばを追加</span>
       <div class="custom-panel">
-        <input id="custom-word" inputmode="kana" maxlength="4" placeholder="かな 2〜4文字" aria-label="かな 2から4文字" />
+        <input id="custom-word" inputmode="text" maxlength="4" placeholder="かな 2〜4文字" aria-label="かな 2から4文字" />
         <div class="custom-emojis" id="custom-emojis" aria-label="絵を選ぶ"></div>
         <button class="ghost-btn" id="custom-add-btn" type="button">＋ 追加</button>
         <div class="custom-feedback" id="custom-feedback" role="status" aria-live="polite"></div>
@@ -953,7 +955,7 @@ function defaultStore(){
   return {
     date:todayStr(), todayStamps:0, soundOn:true, played:0, correct:0,
     playedMs:0, limitMin:15, timerDefaultV2:true, mode:"cards", cardLevel:0, calm:false, bigTargets:false, lefty:false,
-    homeModes:HOME_MODE_KEYS.slice(),
+    homeModes:["cards"],
     friends:[], customWords:[], history:[], misses:{}, lastFriend:""
   };
 }
@@ -1105,6 +1107,7 @@ const TRACE_HINT_MS = 8000;
 const TRACE_RELAX_MS = 16000;
 const TRACE_AUTO_MS = 24000;
 const TRACE_MIN_STROKE_PX = 26;  // PAD(300) units; shorter drawn length = stray tap, ignored
+const TRACE_MIN_COVERAGE = 0.08; // loose glyph coverage; timed unlock still prevents dead ends
 let padCtx = null, padGuideCtx = null;
 let guidePts = [];       // sampled glyph pixels of the current char
 let guideArea = 0;
@@ -1195,7 +1198,11 @@ if("speechSynthesis" in window){
   pickVoiceRetry(10);                       // up to ~2.5s
   speechSynthesis.onvoiceschanged = pickVoice;
 }
-let speechPrimed = false, speechSeq = 0;
+let speechPrimed = false, speechSeq = 0, slowSpeakTimers = [];
+function clearSlowSpeak(){
+  slowSpeakTimers.forEach(clearTimeout);
+  slowSpeakTimers = [];
+}
 function primeSpeech(){
   if(!("speechSynthesis" in window)) return;
   if(!jaVoice) pickVoice();                 // iOS often populates voices on the first gesture
@@ -1233,6 +1240,7 @@ function speak(text, rate){
   }catch(e){}
 }
 function stopSpeaking(){
+  clearSlowSpeak();
   speechSeq++;
   if(!("speechSynthesis" in window)) return;
   try{ speechSynthesis.cancel(); }catch(e){}
@@ -1326,10 +1334,11 @@ function speakKana(kana){
   speak(kana, 0.8);
 }
 function speakWordSlow(word){
+  clearSlowSpeak();
   const chars = [...word];
   if(!chars.length) return;
   speakKana(chars[0]);
-  chars.slice(1).forEach((ch,i)=>setTimeout(()=>speakKana(ch), (i+1)*520));
+  chars.slice(1).forEach((ch,i)=>slowSpeakTimers.push(setTimeout(()=>speakKana(ch), (i+1)*520)));
 }
 function bindPreview(el, textFn){
   if(el.dataset.previewBound){
@@ -1556,7 +1565,31 @@ function teachPick(letter){
 function renderEar(){
   $("hint-emoji").textContent="👂";
   $("hint-emoji").setAttribute("aria-label","おみみ");
-  $("prompt-text").textContent="きいてみよう";
+  $("prompt-text").textContent="きいて えらぼう";
+  $("ear-btn").setAttribute("aria-label","ことばを きく");
+  const box=$("ear-choices");
+  box.innerHTML="";
+  box.classList.remove("is-wrong");
+  const pool=shuffle(allWords().filter(w=>w.id!==current.id && w.emoji!==current.emoji)).slice(0,2);
+  shuffle([current].concat(pool)).forEach(w=>{
+    const b=document.createElement("button");
+    b.type="button"; b.className="ear-choice"; b.textContent=w.emoji;
+    b.setAttribute("aria-label", w.word);
+    b.addEventListener("click",()=>earPick(w.id===current.id));
+    box.appendChild(b);
+  });
+}
+function earPick(ok){
+  if(locked) return;
+  if(ok){
+    locked=true; blip("good");
+    scheduleSolve(onCorrect, 520);
+  }else{
+    wrongCount++; $("message").textContent="よく きいてみよう"; setPeepMood("think");
+    const box=$("ear-choices");
+    box.classList.add("is-wrong");
+    setTimeout(()=>box.classList.remove("is-wrong"), 520);
+  }
 }
 
 function loadQuestion(){
@@ -1581,7 +1614,12 @@ function loadQuestion(){
   $("redo-btn").hidden = mode!=="cards";
   if(mode==="trace"){ setupTraceChar(false); }
   else if(mode==="clap"){ $("prompt-text").textContent="なんかい たたく？"; renderClap(); }
-  else if(mode==="mirror"){ $("prompt-text").textContent="ただしいの どっち？"; renderMirror(); }
+  else if(mode==="mirror"){
+    $("prompt-text").textContent="ただしいの どっち？";
+    $("hint-emoji").textContent="↔";
+    $("hint-emoji").setAttribute("aria-label","むき");
+    renderMirror();
+  }
   else if(mode==="teach"){ $("prompt-text").textContent="ひよこに おしえて"; renderTeach(); }
   else if(mode==="ear"){ renderEar(); }
   else { renderChoices(); }
@@ -1590,6 +1628,7 @@ function loadQuestion(){
   // Start speech directly inside the tap/click call stack; some mobile browsers
   // block Web Speech if the first audible utterance is delayed.
   if(mode==="ear") speakWordSlow(current.word);
+  else if(mode==="mirror") speak("どっちかな", 0.9);
   else speak(current.word);
 }
 
@@ -1725,10 +1764,33 @@ function playTraceDemo(silent){
   dot.style.opacity="";
   drawTraceGuide(ch, "#FFD79A");
   if(!silent) speak(ch+"、なぞってね", 0.85);
-  traceDemoTimer=setTimeout(()=>{
-    traceDemoTimer=null;
-    if(stillThisTraceChar(ch)) drawTraceGuide(ch, "#E8DCC6");
-  }, 900);
+  const pts = guidePts.length ? guidePts : [[PAD/2,70],[PAD/2,PAD/2],[PAD/2,PAD-70]];
+  const count = Math.min(42, pts.length);
+  const path = [];
+  for(let i=0;i<count;i++){
+    const idx = count===1 ? 0 : Math.floor(i*(pts.length-1)/(count-1));
+    path.push(pts[idx]);
+  }
+  const r=$("pad").getBoundingClientRect();
+  const sx=r.width/PAD, sy=r.height/PAD;
+  const start=performance.now(), duration=1200;
+  const move=(now)=>{
+    if(!stillThisTraceChar(ch)){ dot.classList.remove("is-on"); return; }
+    const t=clamp((now-start)/duration, 0, 1);
+    const p=path[Math.min(path.length-1, Math.floor(t*(path.length-1)))];
+    dot.style.transform = "translate("+(p[0]*sx-11).toFixed(1)+"px,"+(p[1]*sy-11).toFixed(1)+"px) scale(1)";
+    dot.classList.add("is-on");
+    if(t<1) traceDemoFrame=requestAnimationFrame(move);
+    else{
+      traceDemoFrame=null;
+      traceDemoTimer=setTimeout(()=>{
+        traceDemoTimer=null;
+        dot.classList.remove("is-on");
+        if(stillThisTraceChar(ch)) drawTraceGuide(ch, "#E8DCC6");
+      }, 180);
+    }
+  };
+  traceDemoFrame=requestAnimationFrame(move);
 }
 function padPos(e){
   const r=$("pad").getBoundingClientRect();
@@ -1781,9 +1843,18 @@ function padCancel(e){            // iOS palm / multi-touch / scroll: end stroke
   try{ if(e && e.pointerId!=null) $("pad").releasePointerCapture(e.pointerId); }catch(_){}
   drawing=false; curStrokeLen=0;
 }
+function traceCoverage(){
+  if(!guideArea) return 0;
+  const data=padCtx.getImageData(0,0,PAD,PAD).data;
+  let hit=0;
+  for(const [x,y] of guidePts){
+    if(data[(y*PAD+x)*4+3]>20) hit++;
+  }
+  return hit / guideArea;
+}
 function checkTrace(){
   if(traceBusy || !guideArea) return;
-  const ready = totalTraceLen >= 70;
+  const ready = totalTraceLen >= 70 && traceCoverage() >= TRACE_MIN_COVERAGE;
   if(ready) traceDoneUnlocked = true;
   updateTraceDoneUi(traceDoneUnlocked);
   if(traceDoneUnlocked){
@@ -1844,6 +1915,9 @@ function judge(){
     onWrong();
   }
 }
+function earnsProgressReward(){
+  return store.mode==="cards" || store.mode==="trace";
+}
 function onWrong(){
   wrongCount++;
   const slots=$("slots");
@@ -1867,11 +1941,13 @@ function onWrong(){
 }
 function onCorrect(){
   if(!screens.quiz.classList.contains("is-active")) return;
-  store.correct++;
-  store.todayStamps++; setStamps++;
-  if(current && !store.friends.includes(current.id)){
-    store.friends.push(current.id);
-    store.lastFriend = current.id;
+  if(earnsProgressReward()){
+    store.correct++;
+    store.todayStamps++; setStamps++;
+    if(current && !store.friends.includes(current.id)){
+      store.friends.push(current.id);
+      store.lastFriend = current.id;
+    }
   }
   saveStore();
   blip("good");
@@ -1881,6 +1957,7 @@ function onCorrect(){
 
 /* ---------- success ----------------------------------------- */
 function showSuccess(){
+  clearSlowSpeak();
   $("success-emoji").textContent = current.emoji;
   $("success-word-text").textContent = current.word;
   bindPreview($("success-word-text"), current.word);
@@ -2106,14 +2183,21 @@ function addCustomWord(){
   renderCustomList();
   setCustomFeedback(storageOk ? (word+" を追加しました") : "この端末では ほぞんできません");
 }
+function updateProfileAddUi(){
+  const btn=$("profile-add-btn");
+  if(!btn) return;
+  const full = profiles.items.length>=3;
+  btn.disabled = full;
+  btn.setAttribute("aria-disabled", String(full));
+}
 function addProfile(){
-  if(profiles.items.length>=3) return;
+  if(profiles.items.length>=3){ updateProfileAddUi(); return; }
   const id="p"+Date.now();
   const emoji=PROFILE_EMOJIS[profiles.items.length%PROFILE_EMOJIS.length];
   profiles.items.push({id, emoji});
   activeProfileId=id; saveProfiles();
   store=loadStore(); saveStore();
-  applyMuteUi(); applyModeUi(); applyLimitUi(); applyPrefUi(); renderHome();
+  applyMuteUi(); applyModeUi(); applyLimitUi(); applyPrefUi(); renderHome(); refreshParentStats();
 }
 function renderTrail(){
   const chart=$("trail-chart");
@@ -2134,18 +2218,22 @@ function renderTrail(){
 }
 let parentTrap = null;
 let parentReturnFocus = null;
-function openParents(){
-  if(parentTrap){ document.removeEventListener("keydown", parentTrap, true); parentTrap = null; }
-  checkpointPlay();
+function refreshParentStats(){
   $("stat-played").textContent = store.played;
   $("stat-correct").textContent = store.correct;
   $("stat-playtime").textContent = formatPlaytime();
+  renderCustomList();
+  renderTrail();
+  updateProfileAddUi();
+}
+function openParents(){
+  if(parentTrap){ document.removeEventListener("keydown", parentTrap, true); parentTrap = null; }
+  checkpointPlay();
   applyMuteUi();
   applyLimitUi();
   applyModeUi();
   applyPrefUi();
-  renderCustomList();
-  renderTrail();
+  refreshParentStats();
   parentReturnFocus = (document.activeElement instanceof HTMLElement) ? document.activeElement : $("parent-link");
   $("parent-veil").classList.add("is-open");
   $("parent-veil").setAttribute("aria-hidden","false");
@@ -2212,10 +2300,7 @@ $("clap-reset").addEventListener("click", ()=>{
   if(locked) return;
   clapCount=0; updateClap(); $("message").textContent="";
 });
-$("ear-btn").addEventListener("click", ()=>{
-  if(locked) return;
-  locked=true; blip("good"); scheduleSolve(onCorrect, 260);
-});
+$("ear-btn").addEventListener("click", ()=>speakWordSlow(current.word));
 $("ear-repeat-btn").addEventListener("click", ()=>speakWordSlow(current.word));
 $("demo-btn").addEventListener("click", ()=>playTraceDemo(false));
 $("trace-done-btn").addEventListener("click", ()=>{
