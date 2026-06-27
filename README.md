@@ -2,7 +2,8 @@
 
 4歳児むけの、ひらがなを **えらんで／なぞって** ことばを つくる 知育ゲーム。
 
-- 単一ファイル（`index.html`）だけで動く・ビルド不要・オフラインOK
+- `index.html` + `styles.css` + `src/*.js` で動く・ビルド不要・GitHub Pages 配布
+- Service Worker によるオフライン起動、録音音声フォールバック（`assets/audio/`）
 - **ふだモード**（文字札をタップ）／**てがきモード**（なぞり書き）の切り替え
 - Web Speech API による読み上げ、花丸（はなまる）スタンプ演出、保護者向け簡易画面
 - 濁点・半濁点・小さい字を使わない、4歳児にやさしい単語（40語）
@@ -17,12 +18,21 @@
 
 ## ローカルで試す
 
-`file://` だと音声・フォントが制限されるため、簡易サーバ経由を推奨:
+ES Modules を使うため、ローカル確認は簡易サーバ経由で行います（`file://` 直開きは対象外）:
 
 ```
 python -m http.server 8000
 # → http://localhost:8000/
 ```
+
+## 開発
+
+```
+npm test
+npm run generate-audio
+```
+
+`generate-audio` は Windows の日本語音声（例: Microsoft Haruka）で `assets/audio/*.wav` を再生成します。
 
 ## 仕様
 

@@ -1,6 +1,6 @@
 # 修正 引き継ぎ書 ⑥（Codex 向け）
 
-対象ファイル: **`index.html`（プロジェクト唯一の実体）**
+対象ファイル: **`index.html` / `styles.css` / `src/*.js` / `sw.js` / `assets/`（single-file 解除後）**
 作成: 2026-06-27 / レビュー＋検証: Claude Code（`main` 全文精読 → 指摘 → Codex 修正 → ローカル実機スモークで照合）
 基準: **`main` 先端 `003f11a` に対する作業ツリー変更（index.html +120/-35、未コミット）**
 姉妹: [`handoff-fixes.md`](handoff-fixes.md) / [`-2`](handoff-fixes-2.md) / [`-3`](handoff-fixes-3.md) / [`-4`](handoff-fixes-4.md) / [`-5`](handoff-fixes-5.md) / [`handoff-ideas.md`](handoff-ideas.md)
@@ -11,7 +11,8 @@
 ---
 
 ## 0. 大前提（崩さない）
-- `index.html` 1ファイルのみ。外部依存追加なし。Service Worker 追加禁止。静的/オフライン/`file://`。
+- **single-file 制約は解除済み**。no-build ESM（`index.html` + `styles.css` + `src/*.js`）で進める。ローカルは簡易サーバ経由のみ（`file://` 直開きは対象外）。
+- 外部依存追加なし。Service Worker / `assets/manifest.webmanifest` / `assets/audio/*.wav` 導入済み。一度読み込めばアプリ本体と録音音声はオフライン起動できる。
 - 主ユーザー＝字が読めない4歳児。**赤バツ・強い失敗演出なし**。**「絶対に詰まらない」を守る**。
 - 既存の検証済み実装を壊さない（🏠幽霊スタンプ防止・誤答プレフィックス保持・フォーカストラップ＋inert・ストレージ移行＋旧キー削除・look-alike 除外・calm/big/lefty・iOS音声 priming・stray tap 無視・てがき24秒自動解放＋ラッチ）。
 - リポジトリは **`main` 一本**。作業は `git switch -c <topic> main` から。本番は main push → GitHub Pages（fragmentgithub.github.io/AIRH）。
@@ -140,7 +141,7 @@
 
 # §7. リファクタリング方針（**single-file 制約を解除する場合**）
 
-> **位置づけ**: §6 は「制約を維持したまま的を絞る」案。本 §7 は **制約を外す方針に転換した場合**の段階プラン。実行に移すなら **§0 の「1ファイルのみ」とプロジェクトの単一ファイル前提（spec／過去 handoff／メモリ）を更新する**こと。デプロイは引き続き **GitHub Pages（main push）**で変わらない。
+> **位置づけ**: §6 は「制約を維持したまま的を絞る」案。本 §7 は **制約を外す方針に転換した場合**の段階プラン。`refactor-modularize` で着手したため、§0 の「1ファイルのみ」は解除済みに更新した。デプロイは引き続き **GitHub Pages（main push）**で変わらない。
 
 ## 7-0. 先に決める2つの分岐（推奨を併記）
 1. **ビルド工程を入れるか** → **推奨: 入れない（no-build / 素の ES Modules）**。理由: 「Pages にそのまま置ける・依存の腐敗が起きない」という現行の最大の利点を維持できる。minify/bundle が要るほど重くなったら後から導入で十分。
@@ -168,9 +169,13 @@
 
 ## 7-2. 段階プラン（各 Phase 後にスモーク）
 - **Phase 1 抽出（挙動不変が絶対）**: `<style>`→`styles.css`、`<script>`→上記モジュールへ機械的に分割。**ロジックは変えない**。`window` 経由の暗黙参照が無いか（現状 `let` トップレベルはモジュールに閉じるので import/export を張る）に注意。完了基準＝既存スモーク（cards5問・おみみ・mirror・trace・保護者・人を増やす）が全て同値・コンソール0件。
+  - 実行メモ: 初回差分では挙動不変を優先し、`<script>` はまず `src/main.js` へ丸ごと抽出する。タイマー／モードなどの責務別モジュール化は Phase 2 以降で行う。
 - **Phase 2 タイマー一元化（§6 R1）**: `timers.js` として導入。**制約下より安全**（モジュール境界でテストも書ける）。
+  - 実行メモ: `src/timers.js` を追加し、ゲーム画面の遅延処理を `after` / `cancelAfter` / `cancelAllPending` 経由へ寄せた。起動時音声解決と `speechSeq` ガード付き発話再試行は例外として維持。
 - **Phase 3 モードテーブル化（§6 R2）**: `modes.js` に集約。
+  - 実行メモ: `src/modes.js` に `MODE_DEFS` / `HOME_MODE_OPTIONS` / 報酬判定を集約し、`loadQuestion` は定義を引いて表示・描画・発話を決める形へ変更。
 - **Phase 4 制約解除で初めて可能になる強化**（7-3〜7-5）。
+  - 実行メモ: Node 標準テスト（`npm test`）、`sw.js`、`assets/manifest.webmanifest`、`src/audio.js`、Microsoft Haruka 生成の `assets/audio/*.wav` を追加。
 
 ## 7-3. 自動テスト導入（最大の恩恵）
 - モジュール化で**純ロジックの単体テストが可能**に＝「テスト無しゆえ小刻み」という現行の足かせが根本解消。
@@ -191,4 +196,28 @@
 - **増えるもの**: ファイル数・初回リクエスト数（SW プリキャッシュで相殺）・（テスト/CI を入れるなら）開発依存。
 - **失うもの**: `file://` ダブルクリック起動（ESM 採用時）。
 - **変わらないもの**: GitHub Pages へ **main push でデプロイ**／バックエンド・ログイン・課金・広告なし／4歳児前提の UX 原則（赤バツ無し・絶対に詰まらない）。
+
+---
+
+# §8. 実施＆検証記録（`refactor-modularize` / Claude Code）
+
+> Codex が §7 を実装（Phase 1〜4 を1ブランチで）。Claude Code が全モジュール精読＋`node --test`＋`python -m http.server` 実機スモークで照合した。**挙動不変・回帰なしを確認**。
+
+## 検証結果（OK）
+- **単体テスト 7/7 パス**（`npm test` = `node --test`）: `timers`（after/cancelAfter/cancelAllPending）・`modes`（normalizeHomeModes/homeModeKeyFor/報酬判定/MODE_DEFS 契約）。
+- **配線健全**: `index.html`→`styles.css`＋`src/main.js`(module)。`main.js` が `modes/timers/audio` を import。起動で `registerServiceWorker()`→`loadRecordedAudioManifest()`→init。
+- **R1 達成**: ゲームループの生 `setTimeout` を `after`/`cancelAfter` に統一、`clearGameTimers()`（=`cancelAllPending`＋個別 clear）を `loadQuestion/goHome/startSet/switchProfile/showRest` で呼ぶ。過去2回のバグクラス（追跡外タイマー）を構造的に封鎖。
+- **R2 達成**: `loadQuestion` が `modeDefFor()` 駆動（areas/slots/listen/redo/prompt/hint/renderer/speech）。報酬は `modeReceivesProgressReward()`。挙動は旧 per-mode 分岐と同値を確認。
+- **解除で実現**: SW は http 限定登録（scope 確認）／録音音声マニフェスト 96 件・`speak()` が「ja 音声無し→録音再生」フォールバック／manifest 実ファイル化。
+- **ランタイム・スモーク**: ホーム=ふだのみ・カード5問完走（花丸5・トレイ5）・SW 登録・音声マニフェスト 96 件取得、**全工程コンソール error/warning 0件**。おみみ/mirror/trace は前周回と同一ロジックのため挙動同値。
+
+## 申し送り（次の周回・任意）
+- **粒度の逸脱**: 本ブランチは §7 の「1論点=1コミット／抽出と機能変更を混ぜない」に反し、抽出＋R1＋R2＋Phase4（SW/音声/テスト）を1ブランチに同梱。検証済みで問題は無いが、**次回はPRを小さく**。
+- **分割は部分的**: `src/main.js` がまだ約1,600行（§7-1 の `data.js`/`store.js`/`trace.js`/`ui.js` 分割は未了）。急がない follow-up。
+- **E2E 未導入**: 単体テストのみ。R1 の回帰（遅延中に🏠→鳴り残り/入力消失なし）・「絶対に詰まらない」を **Playwright で常設化**したい。
+- **微小ニット**: `src/main.js` の `"use strict";` が import 後にある（ESM は元々 strict＝無害）。除去可。
+
+## 状態
+- ブランチ `refactor-modularize`（**未コミット**）。`main` 一本運用のため、検証済みの本ブランチは **main へマージ**して push（→ Pages 反映）。
+- **§0 と単一ファイル制約メモリは本周回で「解除」へ更新済み**（README も多ファイル前提に更新済み）。
 - **やる順序**: Phase1（抽出）を1PRで完了・検証してから Phase2 以降へ。`git switch -c refactor-modularize main`。**抽出と機能変更を同じ PR に混ぜない**（差分レビュー不能になる）。

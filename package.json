@@ -1,0 +1,7 @@
+{
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "generate-audio": "node scripts/generate-audio.mjs"
+  }
+}
