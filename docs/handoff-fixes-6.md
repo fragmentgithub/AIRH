@@ -135,3 +135,60 @@
 
 ## 進め方（共通）
 - テスト無し前提で **1論点=1コミット**、各コミットで該当モードをスモーク。R1→（必要なら）R2 の順。`main` から `git switch -c refactor-timers main`。
+
+---
+
+# §7. リファクタリング方針（**single-file 制約を解除する場合**）
+
+> **位置づけ**: §6 は「制約を維持したまま的を絞る」案。本 §7 は **制約を外す方針に転換した場合**の段階プラン。実行に移すなら **§0 の「1ファイルのみ」とプロジェクトの単一ファイル前提（spec／過去 handoff／メモリ）を更新する**こと。デプロイは引き続き **GitHub Pages（main push）**で変わらない。
+
+## 7-0. 先に決める2つの分岐（推奨を併記）
+1. **ビルド工程を入れるか** → **推奨: 入れない（no-build / 素の ES Modules）**。理由: 「Pages にそのまま置ける・依存の腐敗が起きない」という現行の最大の利点を維持できる。minify/bundle が要るほど重くなったら後から導入で十分。
+2. **`file://` 直開きを維持するか** → **ESM は `file://` だと CORS でロード不可**。ただし現状すでにローカルは `python -m http.server` 前提（README）。よって **ESM 採用＋「ローカルは必ずサーバ」を正式ルール化**を推奨（公開先 Pages は http なので無問題）。`file://` 直開きをどうしても残すなら、ESM をやめ classic `<script src>`＋単一 `App` 名前空間にする。
+
+## 7-1. ディレクトリ構成（案）
+```
+/index.html        … マークアップのみ（<style>/<script> をやめ link/script src に）
+/styles.css        … 現 <style> をそのまま移設
+/src/
+  data.js          … WORDS・KANA_POOL・MOUTH 等の定数
+  store.js         … loadStore/saveStore/profiles/migration
+  audio.js         … speech(pickVoice/speak/primeSpeech)・blip
+  timers.js        … §6 R1 の after/cancelAfter/cancelAllPending（ここで正式化）
+  trace.js         … てがき（pad/guide/coverage/demo）
+  modes.js         … §6 R2 の MODE_DEFS＋各 render*
+  ui.js            … screen 表示・parent sheet・home 描画
+  main.js          … wire-up（エントリ。index.html は main.js を type="module" で読む）
+/sw.js             … Service Worker（7-4 で追加）
+/assets/
+  icons/…          … apple-touch-icon 等の実 PNG
+  audio/…          … 録音音声（7-4 で追加・任意）
+  manifest.webmanifest … data-URI をやめ実ファイル化
+```
+
+## 7-2. 段階プラン（各 Phase 後にスモーク）
+- **Phase 1 抽出（挙動不変が絶対）**: `<style>`→`styles.css`、`<script>`→上記モジュールへ機械的に分割。**ロジックは変えない**。`window` 経由の暗黙参照が無いか（現状 `let` トップレベルはモジュールに閉じるので import/export を張る）に注意。完了基準＝既存スモーク（cards5問・おみみ・mirror・trace・保護者・人を増やす）が全て同値・コンソール0件。
+- **Phase 2 タイマー一元化（§6 R1）**: `timers.js` として導入。**制約下より安全**（モジュール境界でテストも書ける）。
+- **Phase 3 モードテーブル化（§6 R2）**: `modes.js` に集約。
+- **Phase 4 制約解除で初めて可能になる強化**（7-3〜7-5）。
+
+## 7-3. 自動テスト導入（最大の恩恵）
+- モジュール化で**純ロジックの単体テストが可能**に＝「テスト無しゆえ小刻み」という現行の足かせが根本解消。
+- 候補: **Vitest**（純関数）＋ 既にある **Playwright**（E2E スモークの自動化）。
+- 最優先で固めたい純ロジック: `buildSet`（重複なし・難易度ランプ・custom 配置）／`validCustomWord`／`loadStore` の移行・型ガード・日付ロールオーバー／`earnsProgressReward`／`buildChoices`（look-alike 除外）。
+- E2E: §6 R1 の回帰（遅延中に🏠→鳴り残り/入力消失なし）・「絶対に詰まらない」（trace 24秒・各モード正答札存在）を Playwright で常設化。
+- 注: テスト導入は**開発時のみ**で、配布物（Pages に載るファイル）は no-build なら不変。
+
+## 7-4. 真オフライン PWA（制約で塞がれていた本命）
+- `sw.js` を追加し、**html/css/js/フォント/（あれば）音声をプリキャッシュ** → 一度開けば**完全オフライン**（現状は HTTP キャッシュ頼みの degrade）。
+- `manifest` を data-URI から `assets/manifest.webmanifest` へ。`apple-touch-icon` の実 PNG も置ける（iOS のホーム画面アイコンが安定）。
+- 更新戦略: cache-first＋version 付きキャッシュ名で、push のたびに `CACHE_VERSION` を上げて切替（stale 回避）。SW 登録失敗は握り潰してオンライン動作にフォールバック。
+
+## 7-5. 録音音声フォールバック（任意・中核弱点の解消）
+- Web Speech はオフライン/iOS で**無言失敗**しうる（handoff-ideas の既知問題）。`assets/audio/` にかな・語の録音を置き、`audio.js` で **「ja 音声が取れない時は録音を再生」**にフォールバック。単一ファイルでは同梱不可だった対策がここで可能になる。
+
+## 7-6. リスク／コストと不変点
+- **増えるもの**: ファイル数・初回リクエスト数（SW プリキャッシュで相殺）・（テスト/CI を入れるなら）開発依存。
+- **失うもの**: `file://` ダブルクリック起動（ESM 採用時）。
+- **変わらないもの**: GitHub Pages へ **main push でデプロイ**／バックエンド・ログイン・課金・広告なし／4歳児前提の UX 原則（赤バツ無し・絶対に詰まらない）。
+- **やる順序**: Phase1（抽出）を1PRで完了・検証してから Phase2 以降へ。`git switch -c refactor-modularize main`。**抽出と機能変更を同じ PR に混ぜない**（差分レビュー不能になる）。
