@@ -889,7 +889,8 @@ function startTraceHelp(ch){
 function updateTraceDoneUi(ready){
   const btn=$("trace-done-btn");
   if(!btn) return;
-  btn.disabled = false;
+  btn.disabled = !ready;
+  btn.textContent = ready ? "できた" : "なぞってね";
   btn.classList.toggle("is-disabled", !ready);
   btn.setAttribute("aria-disabled", String(!ready));
 }
@@ -1495,6 +1496,7 @@ $("trace-done-btn").addEventListener("click", ()=>{
 });
 $("sound-toggle").addEventListener("click", toggleSound);
 $("sheet-close").addEventListener("click", closeParents);
+$("sheet-close-top").addEventListener("click", closeParents);
 $("parent-veil").addEventListener("click",(e)=>{ if(e.target===$("parent-veil")) closeParents(); });
 document.addEventListener("keydown",(e)=>{ if(e.key==="Escape") closeParents(); });
 

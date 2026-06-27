@@ -108,7 +108,7 @@
       <div class="trace-actions">
         <button class="ghost-btn redo" id="demo-btn">▶ おてほん</button>
         <button class="ghost-btn redo" id="clear-btn">↺ けす</button>
-        <button class="btn btn--next trace-done-btn" id="trace-done-btn" aria-disabled="true">できた</button>
+        <button class="btn btn--next trace-done-btn" id="trace-done-btn" aria-disabled="true" disabled>なぞってね</button>
       </div>
     </div>
 
@@ -166,7 +166,10 @@
 <!-- ============ PARENT SHEET ============ -->
 <div class="sheet-veil" id="parent-veil" aria-hidden="true">
   <div class="sheet" id="parent-sheet" role="dialog" aria-modal="true" aria-labelledby="parent-title">
-    <h2 id="parent-title" tabindex="-1">お家の方へ</h2>
+    <div class="sheet__header">
+      <h2 id="parent-title" tabindex="-1">お家の方へ</h2>
+      <button class="sheet__x" id="sheet-close-top" type="button" aria-label="閉じる">×</button>
+    </div>
     <p class="note">4歳向けのことば遊びです。1セットは5問。短く遊べます。</p>
     <div class="sheet__row">
       <span class="k">音</span>
